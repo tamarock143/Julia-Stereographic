@@ -44,11 +44,3 @@ end
 Brent = function (f,a,b)
     
 end
-
-#How about this one 
-
-#This is a test
-
-#Another test
-
-#Final Test of syncness
