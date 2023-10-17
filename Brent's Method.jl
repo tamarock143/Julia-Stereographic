@@ -46,3 +46,7 @@ Brent = function (f,a,b)
 end
 
 #How about this one 
+
+#This is a test
+
+#Another test
