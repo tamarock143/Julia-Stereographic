@@ -104,7 +104,9 @@ b_range = range(-5, 5, length=51)
 histogram(x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
 plot!(p,label="Analytical", lw=3, color=:red) #Idk why this is flagging as possible error
 xlims!(-5, 5)
-ylims!(0, 0.4)
+ylims!(0, 0.45)
 title!("")
 xlabel!("x")
 ylabel!("P(x)")
+
+plot(x[:,1])
