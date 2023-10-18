@@ -42,5 +42,15 @@ GoldenSearch = function (f,a,b,c; fa = missing, fb = missing, fc = missing)
 end
 
 Brent = function (f,a,b)
-    
+    fa = f(a)
+    fb = f(b)
+
+    #Set initial point according to optimal 
+    x = a + (b-a)(3-sqrt(5))/2
+    fx = f(x)
+
+    #Ensure there is a minimum in our interval
+    while !(fa > fx < fb)
+
+    end
 end
