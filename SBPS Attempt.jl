@@ -3,6 +3,7 @@ include("Stereographic Projection.jl")
 using Random
 using Plots
 using SpecialFunctions
+using StatsBase
 
 ## SBPS Path Simulator
 
@@ -110,3 +111,8 @@ xlabel!("x")
 ylabel!("P(x)")
 
 plot(x[:,1])
+
+plot(autocor(x[:,1], 0:100))
+plot!(x -> 0, color=:black, ls=:dot, lw=3)
+
+autocor(x[:,1],35:40)
