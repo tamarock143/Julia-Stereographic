@@ -41,16 +41,21 @@ GoldenSearch = function (f,a,b,c; fa = missing, fb = missing, fc = missing)
     end
 end
 
+#We will initialise Brent's method by performing a grid search over the interval
+GridSearch = function (f,a,b,n)
+    mygrid = Array{Float64}(undef, (n+2,2))
+
+    for i in 1:n+2
+        x=a+(b-a)*(i-1)/(n+1)
+        mygrid[i,:] = [x,f(x)]
+    end
+
+    return mygrid
+end
+
 Brent = function (f,a,b)
     fa = f(a)
     fb = f(b)
 
-    #Set initial point according to optimal 
-    x = a + (b-a)(3-sqrt(5))/2
-    fx = f(x)
 
-    #Ensure there is a minimum in our interval
-    while !(fa > fx < fb)
-
-    end
 end
