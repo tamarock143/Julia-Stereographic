@@ -43,19 +43,33 @@ end
 
 #We will initialise Brent's method by performing a grid search over the interval
 GridSearch = function (f,a,b,n)
-    mygrid = Array{Float64}(undef, (n+2,2))
+    mygrid = Array{Tuple{Float64,Float64}}(undef,n+2)
 
     for i in 1:n+2
-        x=a+(b-a)*(i-1)/(n+1)
-        mygrid[i,:] = [x,f(x)]
+        x = a+(b-a)*(i-1)/(n+1)
+        mygrid[i] = (x,f(x))
     end
 
     return mygrid
 end
 
 Brent = function (f,a,b)
-    fa = f(a)
-    fb = f(b)
+    #Start by performing a GridSearch, initialised to output 4 points
+    #If we find the minimum to be at an endpoint, we refine the search
+    looking = true
 
+    while looking && b-a > 10^-6
+        #We sort the GridSearch based on f(x)
+        mygrid = sort(GridSearch(f,a,b,2), by = x -> x[2])
+
+        #If the minimum is at an endpoint, focus search to be near that endpoint
+        if mygrid[1][1] == a
+            b = a + (b-a)/3
+        elseif mygrid[1][1] == b
+            a = b - (b-a)/3
+        else
+            looking = false
+        end
+    end
 
 end
