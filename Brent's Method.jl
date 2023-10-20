@@ -59,23 +59,30 @@ Brent = function (f,a,c)
     looking = true
 
     while looking && c-a > 10^-6
-        #We sort the GridSearch based on f(x)
-        mygrid = sort(GridSearch(f,a,c,2), by = x -> x[2])
+        #Perform GridSearch, then find the value with smallest image
+        #Still testing different mesh widths for GridSearch. Here we divide into 3 to be close to GoldenSearch
+        mygrid = GridSearch(f,a,c,2)
+        gridmin = sortperm(mygrid, by = x -> x[2])[1]
 
         #If the minimum is at an endpoint, focus search to be near that endpoint
-        if mygrid[1][1] == a
+        if gridmin == 1 #This is the case where the min is at a
             c = a + (c-a)/3
-        elseif mygrid[1][1] == c
+        elseif gridmin == 4 #This is the case where the min is at b
             a = c - (c-a)/3
         else
             looking = false
         end
     end
 
+    #If the GridSearch chose an endpoint as the min, return that endpoint
+    if looking
+        return mygrid[gridmin]
+    end
+
     #Get ready to run ParaSearch and GoldenSearch
-    (b,fb) = mygrid[1]
-    fa = mygrid[findfirst(x -> x[1] == a, mygrid)][2]
-    fc = mygrid[findfirst(x -> x[1] == c, mygrid)][2]
+    (b,fb) = mygrid[gridmin]
+    fa = mygrid[1][2]
+    fc = mygrid[4][2]
 
     
 end
