@@ -42,7 +42,7 @@ GoldenSearch = function (f,a,b,c; fa = missing, fb = missing, fc = missing)
 end
 
 #We will initialise Brent's method by performing a grid search over the interval
-GridSearch = function (f,a,c,n)
+GridSearch = function (f,a,c,n,tol)
     mygrid = Array{Tuple{Float64,Float64}}(undef,n+2)
 
     for i in 1:n+2
@@ -58,7 +58,7 @@ Brent = function (f,a,c)
     #If we find the minimum to be at an endpoint, we refine the search
     looking = true
 
-    while looking && c-a > 10^-6
+    while looking && c-a > tol
         #Perform GridSearch, then find the value with smallest image
         #Still testing different mesh widths for GridSearch. Here we divide into 3 to be close to GoldenSearch
         mygrid = GridSearch(f,a,c,2)
