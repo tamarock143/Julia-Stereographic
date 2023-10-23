@@ -45,6 +45,7 @@ GoldenSearch = function (f,a,b,c; fa = missing, fb = missing, fc = missing)
 end
 
 #We will initialise Brent's method by performing a grid search over the interval
+#No longer using GridSearch in Brent. Have replaced with simple Binary search
 GridSearch = function (f,a,c,n,tol)
     mygrid = Array{Tuple{Float64,Float64}}(undef,n+2)
 
@@ -57,35 +58,30 @@ GridSearch = function (f,a,c,n,tol)
 end
 
 Brent = function (f,a,c,tol)
-    #Start by performing a GridSearch, initialised to output 3 points
+    #Start by performing a Binary search, by looking at the midpoint of the interval
     #If we find the minimum to be at an endpoint, we refine the search
     looking = true
+    fa = f(a)
+    fc = f(c)
 
     while looking && c-a > tol
-        #Perform GridSearch, then find the value with smallest image
-        #Still testing different mesh widths for GridSearch. Here we simply divide the interval in 2
-        mygrid = GridSearch(f,a,c,1)
-        gridmin = sortperm(mygrid, by = x -> x[2])[1]
+        b = (c+a)/2
+        fb = f(b)
 
         #If the minimum is at an endpoint, focus search to be near that endpoint
-        if gridmin == 1 #This is the case where the min is at a
-            c = a + (c-a)/2
-        elseif gridmin == 3 #This is the case where the min is at b
-            a = c - (c-a)/2
-        else
+        if fa > fb < fc
             looking = false
+        elseif fa < fc
+            (c,fc) = (b,fb)
+        else
+            (a,fa) = (b,fb)
         end
     end
 
-    #If the GridSearch chose an endpoint as the min, return that endpoint
+    #If the Binary search chose an endpoint as the min, return that endpoint
     if looking
-        return mygrid[gridmin]
+        return sort([(a,fa),(c,fc)], by = x -> x[2])[1]
     end
 
-    #Get ready to run ParaSearch and GoldenSearch
-    (b,fb) = mygrid[2]
-    fa = mygrid[1][2]
-    fc = mygrid[3][2]
-
-    
+        
 end
