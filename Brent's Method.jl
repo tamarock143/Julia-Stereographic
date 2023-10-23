@@ -30,14 +30,17 @@ GoldenSearch = function (f,a,b,c; fa = missing, fb = missing, fc = missing)
     #Ensure we have suitable input
     (!(a<b<c) || fb > fa || fb > fc) && error("GoldenSearch input error")
 
-    #Find Golden Search interpolation point
-    x = c+a-b
-    fx = f(x)
+    w = (3-sqrt(5))/2 #Golden ratio
 
-    if x <= b
-        fx <= fb ? ((a,fa),(x,fx),(b,fb)) : ((x,fx),(b,fb),(c,fc))
-    else
+    #Find Golden Search interpolation point
+    if c-b > b-a #Check whether longer interval is to the left or right of b
+        x = b + (c-b)w
+        fx = f(x)
         fx <= fb ? ((b,fb),(x,fx),(c,fc)) : ((a,fa),(b,fb),(x,fx))
+    else
+        x = b - (b-a)w
+        fx = f(x)
+        fx <= fb ? ((a,fa),(x,fx),(b,fb)) : ((x,fx),(b,fb),(c,fc))
     end
 end
 
@@ -53,22 +56,22 @@ GridSearch = function (f,a,c,n,tol)
     return mygrid
 end
 
-Brent = function (f,a,c)
-    #Start by performing a GridSearch, initialised to output 4 points
+Brent = function (f,a,c,tol)
+    #Start by performing a GridSearch, initialised to output 3 points
     #If we find the minimum to be at an endpoint, we refine the search
     looking = true
 
     while looking && c-a > tol
         #Perform GridSearch, then find the value with smallest image
-        #Still testing different mesh widths for GridSearch. Here we divide into 3 to be close to GoldenSearch
-        mygrid = GridSearch(f,a,c,2)
+        #Still testing different mesh widths for GridSearch. Here we simply divide the interval in 2
+        mygrid = GridSearch(f,a,c,1)
         gridmin = sortperm(mygrid, by = x -> x[2])[1]
 
         #If the minimum is at an endpoint, focus search to be near that endpoint
         if gridmin == 1 #This is the case where the min is at a
-            c = a + (c-a)/3
-        elseif gridmin == 4 #This is the case where the min is at b
-            a = c - (c-a)/3
+            c = a + (c-a)/2
+        elseif gridmin == 3 #This is the case where the min is at b
+            a = c - (c-a)/2
         else
             looking = false
         end
@@ -80,9 +83,9 @@ Brent = function (f,a,c)
     end
 
     #Get ready to run ParaSearch and GoldenSearch
-    (b,fb) = mygrid[gridmin]
+    (b,fb) = mygrid[2]
     fa = mygrid[1][2]
-    fc = mygrid[4][2]
+    fc = mygrid[3][2]
 
     
 end
