@@ -2,13 +2,23 @@
 #We need the parabolic interpolation method, and the Golden search method
 
 ParaSearch = function (f,a,b,c; fa = missing, fb = missing, fc = missing)
+    #ParaSearch includes many fail cases, which we account for going into Brent's Method
+    #Do we have a repeated point?
+    !(a != b != c) && return "Fail"
+
     #If not provided, evaluate f at each point
     isequal(fa,missing) && (fa = f(a))
     isequal(fb,missing) && (fb = f(b))
     isequal(fc,missing) && (fc = f(c))
 
+    #Check points are well ordered
+    !(a<b<c) && ((a,fa),(b,fb),(c,fc)) = sort([(a,fa),(b,fb),(c,fc)], by = x -> x[1])
+
     #Ensure we have suitable input
-    (!(a<b<c) || fb > fa || fb > fc) && error("ParaSearch input error")
+    (fb > fa || fb > fc) && return "Fail"
+
+    #Ensure we do not divide by 0
+    (b-a)*(fb - fc) == (b-c)*(fb - fa) && return "Fail"
 
     #Parabolic interpolation
     x = b - 1/2 *((b-a)^2*(fb - fc) - (b-c)^2*(fb - fa))/((b-a)*(fb - fc) - (b-c)*(fb - fa))
@@ -27,8 +37,11 @@ GoldenSearch = function (f,a,b,c; fa = missing, fb = missing, fc = missing)
     isequal(fb,missing) && (fb = f(b))
     isequal(fc,missing) && (fc = f(c))
     
+    #Check points are well ordered
+    !(a<b<c) && ((a,fa),(b,fb),(c,fc)) = sort([(a,fa),(b,fb),(c,fc)], by = x -> x[1])
+
     #Ensure we have suitable input
-    (!(a<b<c) || fb > fa || fb > fc) && error("GoldenSearch input error")
+    (fb > fa || fb > fc) && return "No min"
 
     w = (3-sqrt(5))/2 #Golden ratio
 
@@ -83,5 +96,11 @@ Brent = function (f,a,c,tol)
         return sort([(a,fa),(c,fc)], by = x -> x[2])[1]
     end
 
+    #Initialise alternations between GoldenSearch and ParaSearch. These variables are required for bookkeeping
+    x = w = v = b
+    fx = fw = fv = b
+
+    while c-a > tol
         
+    end
 end
