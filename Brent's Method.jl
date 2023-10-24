@@ -14,7 +14,7 @@ ParaSearch = function (f,a,b,c; fa = missing, fb = missing, fc = missing, triple
     #Check points are well ordered
     !(a<b<c) && ((a,fa),(b,fb),(c,fc)) = sort([(a,fa),(b,fb),(c,fc)], by = x -> x[1])
 
-    #Ensure we have suitable input
+    #Ensure we have suitable input to search for a minimum
     (fb > fa || fb > fc) && return "Fail"
 
     #Ensure we do not divide by 0 (tests whether points are colinear)
@@ -72,50 +72,62 @@ GoldenSearch = function (f,a,b,c; fa = missing, fb = missing, fc = missing, trip
     end
 end
 
-#We will initialise Brent's method by performing a grid search over the interval
-#No longer using GridSearch in Brent. Have replaced with simple Binary search
-GridSearch = function (f,a,c,n,tol)
-    mygrid = Array{Tuple{Float64,Float64}}(undef,n+2)
-
-    for i in 1:n+2
-        x = a+(c-a)*(i-1)/(n+1)
-        mygrid[i] = (x,f(x))
-    end
-
-    return mygrid
-end
-
-Brent = function (f,a,c,tol)
+Brent = function (f,a,b,tol)
     #Start by performing a Binary search, by looking at the midpoint of the interval
     #If we find the minimum to be at an endpoint, we refine the search
     looking = true
     fa = f(a)
-    fc = f(c)
+    fb = f(b)
 
-    while looking && c-a > tol
-        b = (c+a)/2
-        fb = f(b)
+    while looking && b-a > tol
+        x = (b+a)/2
+        fx = f(x)
 
         #If the minimum is at an endpoint, focus search to be near that endpoint
-        if fa > fb < fc
+        if fb > fx < fb
             looking = false
-        elseif fa < fc
-            (c,fc) = (b,fb)
+        elseif fa < fb
+            (b,fb) = (x,fx)
         else
-            (a,fa) = (b,fb)
+            (a,fa) = (x,fx)
         end
     end
 
     #If the Binary search chose an endpoint as the min, return that endpoint
     if looking
-        return sort([(a,fa),(c,fc)], by = x -> x[2])[1]
+        return sort([(a,fa),(b,fb)], by = x -> x[2])[1]
     end
 
     #Initialise alternations between GoldenSearch and ParaSearch. These variables are required for bookkeeping
-    x = w = v = b
-    fx = fw = fv = fb
+    ((v,fv),(w,fw)) = sort([(a,fa),(b,fb)], by = x -> x[2])
 
-    while c-a > tol
-        
+    while b-a > tol
+        #Attempt ParaSearch
+        p = ParaSearch(f, x, w, v, fa = fx, fb = fw, fc = fv)
+
+        #If ParaSearch did not yield satisfactory results, use GoldenSearch
+        if p == "Fail" || !(a <= p[1] <= b) || abs(fx - p[2]) <= abs(fv - fw)/2
+            (u,fu) = GoldenSearch(f, a, x, b, fa = fa, fb = fx, fc = fb)
+        else
+            (u,fu) = p
+        end
+
+        #Update variables
+        (w,fw) = (v,fv)
+        if fu <= fx
+            (v,fv) = (x,fx)
+            if u <= x
+                ((a,fa),(x,fx),(b,fb)) = ((a,fa),(u,fu),(x,fx))
+            else
+                ((a,fa),(x,fx),(b,fb)) = ((x,fx),(u,fu),(b,fb))
+            end
+        else
+            fu <= fv && (v,fv) = (u,fu)
+            if u <= x
+                (a,fa) = (u,fu)
+            else
+                (b,fb) = (u,fu)
+            end
+        end
     end
 end
