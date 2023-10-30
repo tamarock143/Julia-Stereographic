@@ -131,5 +131,5 @@ Brent = function (f,a,b,tol)
         end
     end
 
-    
+    return (x,fx)
 end
