@@ -31,12 +31,18 @@ end
 #Pdf of z = SPinv(x), where x has pdf f
 SPdensity = function(f)
     #Output of SPdensity will be the following function
-    pi_S = function(z; sigma = sqrt(length(z)-1)I(length(z)-1), mu = zeros(length(z)-1))
+    pi_S = function(z; sigma = sqrt(length(z)-1)I(length(z)-1), mu = zeros(length(z)-1), islog = false)
         #Transform from sphere to Euclidean space
         x = SP(z; sigma, mu)
     
-        #pi_S outputs f(x)* Jacobian of SP
-        return(f(x)*(1-z[end])^-(length(z)-1))
+        if islog
+            #pi_S outputs f(x)* Jacobian of SP if we ask for density
+            return(f(x)*(1-z[end])^-(length(z)-1))
+        else
+            #pi_S outputs f(x) + log(Jacobian) of SP if we ask for log-density
+            return(f(x) - (length(z)-1)log(1-z[end]))
+        end
+        
     end
 
     return pi_S
