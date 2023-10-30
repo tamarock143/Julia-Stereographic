@@ -11,12 +11,12 @@ SP = function (z; sigma = sqrt(length(z)-1)I(length(z)-1), mu = zeros(length(z)-
     #Warning if z == North Pole
     z[end] == 1 && (println("Warning: x = Inf"); return Inf*ones(length(z)-1))
 
-    sigma*z[1:end-1]/(1- z[end]) .+ mu
+    sigma*z[1:end-1]/(1- z[end]) + mu
 end
 
 #Stereographic Projection from x to z
 SPinv = function (x; sigma = sqrt(length(x))I(length(x)), mu = zeros(length(x)), isinv = false)
-    isinv ? y = sigma*(x.-mu) : y = inv(sigma)*(x.-mu)
+    isinv ? y = sigma*(x-mu) : y = inv(sigma)*(x-mu)
 
     ynorm = sum(y.^2)
 
