@@ -46,7 +46,7 @@ GoldenSearch = function (f,a,b,c; fa = missing, fb = missing, fc = missing, trip
     !(a<b<c) && (((a,fa),(b,fb),(c,fc)) = sort([(a,fa),(b,fb),(c,fc)], by = x -> x[1]))
 
     #Ensure we have suitable input
-    (fb > fa || fb > fc) && error("Error: No min in GoldenSearch")
+    (fb > fa || fb > fc) && error("No min in GoldenSearch")
 
     w = (3-sqrt(5))/2 #Golden ratio
 
@@ -86,7 +86,7 @@ Brent = function (f,a,b,tol)
         fx = f(x)
 
         #If the minimum is at an endpoint, focus search to be near that endpoint
-        if fb > fx < fb
+        if fa > fx < fb
             looking = false
         elseif fa < fb
             (b,fb) = (x,fx)
