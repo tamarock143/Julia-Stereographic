@@ -130,4 +130,6 @@ Brent = function (f,a,b,tol)
             end
         end
     end
+
+    
 end
