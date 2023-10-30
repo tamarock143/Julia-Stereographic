@@ -12,7 +12,7 @@ ParaSearch = function (f,a,b,c; fa = missing, fb = missing, fc = missing, triple
     isequal(fc,missing) && (fc = f(c))
 
     #Check points are well ordered
-    !(a<b<c) && ((a,fa),(b,fb),(c,fc)) = sort([(a,fa),(b,fb),(c,fc)], by = x -> x[1])
+    !(a<b<c) && (((a,fa),(b,fb),(c,fc)) = sort([(a,fa),(b,fb),(c,fc)], by = x -> x[1]))
 
     #Ensure we have suitable input to search for a minimum
     (fb > fa || fb > fc) && return "Fail"
@@ -43,10 +43,10 @@ GoldenSearch = function (f,a,b,c; fa = missing, fb = missing, fc = missing, trip
     isequal(fc,missing) && (fc = f(c))
     
     #Check points are well ordered
-    !(a<b<c) && ((a,fa),(b,fb),(c,fc)) = sort([(a,fa),(b,fb),(c,fc)], by = x -> x[1])
+    !(a<b<c) && (((a,fa),(b,fb),(c,fc)) = sort([(a,fa),(b,fb),(c,fc)], by = x -> x[1]))
 
     #Ensure we have suitable input
-    (fb > fa || fb > fc) && return "No min"
+    (fb > fa || fb > fc) && error("Error: No min in GoldenSearch")
 
     w = (3-sqrt(5))/2 #Golden ratio
 
@@ -78,6 +78,8 @@ Brent = function (f,a,b,tol)
     looking = true
     fa = f(a)
     fb = f(b)
+
+    (x,fx) = [undef,undef]
 
     while looking && b-a > tol
         x = (b+a)/2
@@ -122,7 +124,7 @@ Brent = function (f,a,b,tol)
                 ((a,fa),(x,fx),(b,fb)) = ((x,fx),(u,fu),(b,fb))
             end
         else
-            fu <= fv && (v,fv) = (u,fu)
+            fu <= fv && ((v,fv) = (u,fu))
             if u <= x
                 (a,fa) = (u,fu)
             else
