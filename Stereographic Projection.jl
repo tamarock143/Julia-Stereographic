@@ -1,5 +1,6 @@
 #Import LinearAlgebra library
 using LinearAlgebra
+using ForwardDiff
 
 ## Stereographic Projection ##
 
@@ -30,7 +31,7 @@ end
 
 #Pdf of z = SPinv(x), where x has pdf f
 SPdensity = function(f; logdens = false)
-    #Output of SPdensity will be the following function
+    #Output of SPdensity will be a function giving the projected density
     if logdens
         #pi_S outputs f(x) + log(Jacobian) of SP if we ask for log-density
         pi_S = function(z; sigma = sqrt(length(z)-1)I(length(z)-1), mu = zeros(length(z)-1))
@@ -114,4 +115,36 @@ SBPSBounce = function(z,v,grad)
     gradtangent = normalize(grad - sum(z.*grad)z)
 
     v - 2sum(v.*gradtangent)gradtangent
+end
+
+SBPSRate = function (f; logdens = false)
+    #Output of SBPSRate will be a function giving the dot product for the SBPS event rate
+    #Note that we do not output the positive part, but allow for negative outputs
+    if logdens
+        lambda_S = function(t,z0,v0; sigma = sqrt(length(z)-1)I(length(z)-1), mu = zeros(length(z)-1))
+            #Move t time units forward from z0, v0
+            (z,v) = (z0*cos(t) + v0*sin(t), v0*cos(t) - z0*sin(t))
+
+            #Project to Euclidean space
+            x = SP(z; sigma, mu)
+
+            #Perform the rate calculation
+            mygrad = ForwardDiff.gradient(f,x)
+            -sum(v.*vcat(sigma*mygrad, length(x) + sum((x.-mu).*mygrad))/(1-z[end]))
+        end
+    else
+        lambda_S = function(t,z0,v0; sigma = sqrt(length(z)-1)I(length(z)-1), mu = zeros(length(z)-1))
+            #Move t time units forward from z0, v0
+            (z,v) = (z0*cos(t) + v0*sin(t), v0*cos(t) - z0*sin(t))
+
+            #Project to Euclidean space
+            x = SP(z; sigma, mu)
+
+            #Perform the rate calculation
+            mygrad = ForwardDiff.gradient(x -> log(f(x)),x)
+            -sum(v.*vcat(sigma*mygrad, length(x) + sum((x.-mu).*mygrad))/(1-z[end]))
+        end
+    end
+
+    return lambda_S
 end
