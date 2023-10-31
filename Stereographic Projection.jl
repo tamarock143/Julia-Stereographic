@@ -16,7 +16,7 @@ end
 
 #Stereographic Projection from x to z
 SPinv = function (x; sigma = sqrt(length(x))I(length(x)), mu = zeros(length(x)), isinv = false)
-    isinv ? y = sigma*(x-mu) : y = inv(sigma)*(x-mu)
+    isinv ? y = sigma*(x.-mu) : y = inv(sigma)*(x.-mu)
 
     ynorm = sum(y.^2)
 
@@ -115,9 +115,3 @@ SBPSBounce = function(z,v,grad)
 
     v - 2sum(v.*gradtangent)gradtangent
 end
-
-#SBPS Bounce Event Rate
-SBPSRate = function (v,grad)
-    max(0, -sum(v.*grad))
-end
-
