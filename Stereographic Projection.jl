@@ -130,7 +130,7 @@ SBPSRate = function (f; logdens = false)
 
             #Perform the rate calculation
             mygrad = ForwardDiff.gradient(f,x)
-            -sum(v.*vcat(sigma*mygrad, length(x) + sum((x.-mu).*mygrad))/(1-z[end]))
+            sum(v.*vcat(sigma*mygrad, length(x) + sum((x.-mu).*mygrad))/(1-z[end]))
         end
     else
         lambda_S = function(t,z0,v0; sigma = sqrt(length(z)-1)I(length(z)-1), mu = zeros(length(z)-1))
@@ -142,7 +142,7 @@ SBPSRate = function (f; logdens = false)
 
             #Perform the rate calculation
             mygrad = ForwardDiff.gradient(x -> log(f(x)),x)
-            -sum(v.*vcat(sigma*mygrad, length(x) + sum((x.-mu).*mygrad))/(1-z[end]))
+            sum(v.*vcat(sigma*mygrad, length(x) + sum((x.-mu).*mygrad))/(1-z[end]))
         end
     end
 

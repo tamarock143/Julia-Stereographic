@@ -5,4 +5,3 @@ using Random
 using Plots
 using SpecialFunctions
 using StatsBase
-using ForwardDiff
