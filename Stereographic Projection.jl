@@ -11,7 +11,7 @@ SP = function (z; sigma = sqrt(length(z)-1)I(length(z)-1), mu = zeros(length(z)-
     #Warning if z == North Pole
     z[end] == 1 && (println("Warning: x = Inf"); return Inf*ones(length(z)-1))
 
-    sigma*z[1:end-1]/(1- z[end]) + mu
+    sigma*z[1:end-1]/(1- z[end]) .+ mu
 end
 
 #Stereographic Projection from x to z
