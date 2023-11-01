@@ -117,33 +117,21 @@ SBPSBounce = function(z,v,grad)
     v - 2sum(v.*gradtangent)gradtangent
 end
 
-SBPSRate = function (f; logdens = false)
-    #Output of SBPSRate will be a function giving the dot product for the SBPS event rate
-    #Note that we do not output the positive part, but allow for negative outputs
-    if logdens
-        lambda_S = function(t,z0,v0; sigma = sqrt(length(z)-1)I(length(z)-1), mu = zeros(length(z)-1))
-            #Move t time units forward from z0, v0
-            (z,v) = (z0*cos(t) + v0*sin(t), v0*cos(t) - z0*sin(t))
+SBPSRate = function (gradlogf) #Note this function requires the ∇log(f) already calculated
+    #Output of SBPSRate will be a function giving the gradient and dot product for the SBPS event rate
+    lambda_S = function(t,z0,v0; sigma = sqrt(length(z)-1)I(length(z)-1), mu = zeros(length(z)-1))
+        #Move t time units forward from z0, v0
+        (z,v) = (z0*cos(t) + v0*sin(t), v0*cos(t) - z0*sin(t))
 
-            #Project to Euclidean space
-            x = SP(z; sigma, mu)
+        #Project to Euclidean space
+        x = SP(z; sigma, mu)
 
-            #Perform the rate calculation
-            mygrad = ForwardDiff.gradient(f,x)
-            sum(v.*vcat(sigma*mygrad, length(x) + sum((x.-mu).*mygrad))/(1-z[end]))
-        end
-    else
-        lambda_S = function(t,z0,v0; sigma = sqrt(length(z)-1)I(length(z)-1), mu = zeros(length(z)-1))
-            #Move t time units forward from z0, v0
-            (z,v) = (z0*cos(t) + v0*sin(t), v0*cos(t) - z0*sin(t))
+        #Perform the rate calculation
+        mygrad = gradlogf(x)
 
-            #Project to Euclidean space
-            x = SP(z; sigma, mu)
-
-            #Perform the rate calculation
-            mygrad = ForwardDiff.gradient(x -> log(f(x)),x)
-            sum(v.*vcat(sigma*mygrad, length(x) + sum((x.-mu).*mygrad))/(1-z[end]))
-        end
+        #Return the rate and the gradient
+        return (rate = sum(v.*vcat(sigma*mygrad, length(x) + sum((x.-mu).*mygrad))/(1-z[end])),
+            mygrad = mygrad)
     end
 
     return lambda_S
