@@ -13,10 +13,10 @@ SBPSSimulator = function (f, x0, lambda, T, delta; Tbrent = pi/4, tol = 1e-9,
         logdens = false)
     
     #Start by ensuring we are working with a log-density
-    !logdens && f = x -> log(f(x))
+    logdens || f = x -> log(f(x))
 
-    #Precalculate the gradient function for f
-    gradf = x -> ForwardDiff.gradient(f,x)
+    #Precalculate the gradient function for f (or derivative in d=1 case)
+    length(x0) > 1 ? gradf = x -> ForwardDiff.gradient(f,x) : gradf = x -> ForwardDiff.derivative(f,x)
 
     #This line is here to precalculated the gradient function, and create a global variable for the gradient vector
     mygrad = gradf(x0) 
@@ -24,7 +24,7 @@ SBPSSimulator = function (f, x0, lambda, T, delta; Tbrent = pi/4, tol = 1e-9,
     #Invert the matrix sigma
     sigmainv = inv(sigma)
 
-    z = SPinv(x0; sigmainv, mu, isinv = true) #Map to the sphere
+    z = SPinv(x0; sigma = sigmainv, mu = mu, isinv = true) #Map to the sphere
     v = SBPSRefresh(z) #Initialize velocity
     d = length(x0) #The dimension
 
@@ -42,7 +42,7 @@ SBPSSimulator = function (f, x0, lambda, T, delta; Tbrent = pi/4, tol = 1e-9,
     t0::Float64 = delta #Amount of time after an event until the next skeleton path sample time
 
     #Set up Bounce rate function
-    bouncerate = SBPSBounce(gradf)
+    bouncerate = SBPSRate(gradf)
 
     while left > 0
         #Simulate next event before time Tbrent
@@ -50,7 +50,7 @@ SBPSSimulator = function (f, x0, lambda, T, delta; Tbrent = pi/4, tol = 1e-9,
         Tbound = min(left, Tbrent)
 
         #Find upper bound M on the bounce rate
-        M = -Brent(s -> bouncerate(s,z,v; sigma, mu)[1], 0, Tbound, tol)
+        M = -Brent(s -> bouncerate(s,z,v; sigma = sigma, mu = mu)[1], 0, Tbound, tol)[2]
 
         #Time of potential bounce event
         taubounce = 0
