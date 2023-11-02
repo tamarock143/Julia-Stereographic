@@ -45,37 +45,54 @@ SBPSSimulator = function (f, x0, lambda, T, delta; Tbrent = pi/4, tol = 1e-9,
     bouncerate = SBPSRate(gradf)
 
     while left > 0
+        #Simulate next refreshment time according to Exp(lambda)
+        tauref = randexp(Float64)/lambda
+
         #Simulate next event before time Tbrent
-        #Tbound will track how much time the Brent bound on the bounce rate still holds for
-        Tbound = min(left, Tbrent)
-
-        #Find upper bound M on the bounce rate
-        M = -Brent(s -> bouncerate(s,z,v; sigma = sigma, mu = mu)[1], 0, Tbound, tol)[2]
-
         #Time of potential bounce event
         taubounce = 0
+
+        #Tracks how many chunks of Brent's method we have gone through
+        l = 0
         #Indictor of whether we are still looking for a bounce
-        bounce = false
+        nobounce = true
 
-        #Simulate the bounce event time up to Tbound
-        while !bounce
-            #Simulate next possible bounce time according to Exp(M)
-            taubounce += randexp(Float64)/M
+        while nobounce && taubounce < min(left,tauref)
+            #Find upper bound M on the bounce rate for current chunk
+            M = -Brent(s -> bouncerate(s,z,v; sigma = sigma, mu = mu)[1],
+                     l*Tbrent, (l+1)Tbrent, tol)[2]
 
-            #Did the event happen before the end of the interval?
-            taubounce > Tbound && (taubounce = Tbound; break)
+            #Is there a positive chance of a bounce?
+            if M > 0
+                #Simulate whether there will be a bounce in this chunk
+                while nobounce
+                    #Simulate next possible bounce time according to Exp(M)
+                    taubounce += randexp(Float64)/M
 
-            #Did a bounce happen, or do we need a new bound?
-            mybounce = bouncerate(taubounce,z,v; sigma, mu) #Rate and gradient at bounce time
-            u = rand(Float64) #Uniform random variable to accept/reject bounce
+                    #Did the event happen before the end of the interval?
+                    taubounce > (l+1)Tbrent && (taubounce = (l+1)Tbrent; break)
 
-            if mybounce[1]/M > u #Accept bounce and break, or go for another loop
-                bounce = true
-                mygrad = mybounce[2]
+                    #Did a bounce happen, or do we reject this event?
+                    mybounce = bouncerate(taubounce,z,v; sigma, mu) #Rate and gradient at bounce time
+                    u = rand(Float64) #Uniform random variable to accept/reject bounce
+
+                    if -mybounce[1]/M > u #Accept bounce and break, or go for another loop
+                        nobounce = false
+                        mygrad = mybounce[2]
+                    end
+                end
+            else
+                #If negative rate, move to next interval
+                taubounce = (l+1)Tbrent
             end
+
+            l += 1 #Increment number of Brent steps so far
         end
 
         ########## Got to here
+        
+        #Time until next event, or need new upper bound
+        t =
         
         #Update remaining path length
         left -= t 

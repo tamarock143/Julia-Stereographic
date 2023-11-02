@@ -117,8 +117,10 @@ SBPSBounce = function(z,v,grad)
     v - 2sum(v.*gradtangent)gradtangent
 end
 
+#WARNING: SBPSRate outputs the gradient and dot product for the SBPS event rate.
+#In particular, you need to take -dot product for the true rate
 SBPSRate = function (gradlogf) #Note this function requires the ∇log(f) already calculated
-    #Output of SBPSRate will be a function giving the gradient and dot product for the SBPS event rate
+    #Output is the function lambda_S
     lambda_S = function(t,z0,v0; sigma = sqrt(length(z)-1)I(length(z)-1), mu = zeros(length(z)-1))
         #Move t time units forward from z0, v0
         (z,v) = (z0*cos(t) + v0*sin(t), v0*cos(t) - z0*sin(t))
