@@ -129,7 +129,8 @@ SBPSRate = function (gradlogf) #Note this function requires the ∇log(f) alread
         x = SP(z; sigma, mu)
 
         #Perform the rate calculation
-        mygrad = gradlogf(x)
+        #Need dimension check for d=1 case
+        length(x) > 1 ? mygrad = gradlogf(x) : mygrad = gradlogf(x[1])
 
         #Return the rate and the gradient
         return (rate = sum(v.*vcat(sigma*mygrad, length(x) + sum((x.-mu).*mygrad))/(1-z[end])),
