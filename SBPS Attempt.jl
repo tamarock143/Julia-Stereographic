@@ -10,7 +10,7 @@ using StatsBase
 #We start by simulating a multivariate student's t-distribution with d degrees of freedom
 #This is the easiest distribution to target with SBPS, since the density is uniform on the sphere
 #This means there will be no bounce events
-SBPSStudentSimulator = function (x0, lambda, T, delta)
+SBPSStudentSimulator = function(x0, lambda, T, delta)
     z = SPinv(x0) #Map to the sphere
     v = SBPSRefresh(z) #Initialize velocity
     d = length(x0) #The dimension
@@ -80,10 +80,10 @@ end
 #First attempt:
 
 #Define parameters etc
-d=50
+d=2
 x0 = randn(d)
 lambda = 1
-T = 10000
+T = 100
 delta = 0.1
 
 #Run the simulation
