@@ -133,7 +133,7 @@ SBPSRate = function (gradlogf) #Note this function requires the ∇log(f) alread
         length(x) > 1 ? xgrad = gradlogf(x) : xgrad = gradlogf(x[1])
 
         #Calculate gradient of density on sphere
-        zgrad = vcat(sigma*mygrad, length(x) + sum((x.-mu).*mygrad))/(1-z[end])
+        zgrad = vcat(sigma*xgrad, length(x) + sum((x.-mu).*xgrad))/(1-z[end])
 
         #Return the rate and the gradient
         return (rate = sum(v.*zgrad), grad = zgrad)

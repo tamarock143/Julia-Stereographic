@@ -3,7 +3,6 @@ include("Stereographic Projection.jl")
 include("Brent's Method.jl")
 using Random
 using Plots
-using SpecialFunctions
 using StatsBase
 
 #We simulate an SBPS path targeting the disribtuion f. It requires x -> ∇log(f(x))
