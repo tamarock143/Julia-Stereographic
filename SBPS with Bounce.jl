@@ -9,11 +9,8 @@ using StatsBase
 #This requires bounce events and refreshment events
 SBPSSimulator = function (gradlogf, x0, lambda, T, delta; Tbrent = pi/4, tol = 1e-9,
         sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)))
-    
-    #Invert the matrix sigma
-    sigmainv = inv(sigma)
 
-    z = SPinv(x0; sigma = sigmainv, mu = mu, isinv = true) #Map to the sphere
+    z = SPinv(x0; sigma = sigma, mu = mu, isinv = false) #Map to the sphere
     v = SBPSRefresh(z) #Initialize velocity
     d = length(x0) #The dimension
 
