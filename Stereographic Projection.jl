@@ -100,8 +100,8 @@ SBPSRefresh = function(z)
     normalize(v - sum(z.*v)z)
 end
 
-#SBPS Bounce update for velocity
-SBPSBounce = function(z,v,grad) 
+#SBPS Bounce update for velocity, given gradient of spherical density
+SBPSBounce = function(z,v,grad)
     #Ensure we are on the sphere, length(z)==length(v) and z.v=0
     abs(sum(z.^2) - 1) >= 1e-12 && error("norm(z) != 1") 
     
@@ -130,11 +130,13 @@ SBPSRate = function (gradlogf) #Note this function requires the ∇log(f) alread
 
         #Perform the rate calculation
         #Need dimension check for d=1 case
-        length(x) > 1 ? mygrad = gradlogf(x) : mygrad = gradlogf(x[1])
+        length(x) > 1 ? xgrad = gradlogf(x) : xgrad = gradlogf(x[1])
+
+        #Calculate gradient of density on sphere
+        zgrad = vcat(sigma*mygrad, length(x) + sum((x.-mu).*mygrad))/(1-z[end])
 
         #Return the rate and the gradient
-        return (rate = sum(v.*vcat(sigma*mygrad, length(x) + sum((x.-mu).*mygrad))/(1-z[end])),
-            mygrad = mygrad)
+        return (rate = sum(v.*zgrad), grad = zgrad)
     end
 
     return lambda_S

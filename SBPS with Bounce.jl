@@ -6,21 +6,11 @@ using Plots
 using SpecialFunctions
 using StatsBase
 
-#We simulate an SBPS path targeting the disribtuion f
+#We simulate an SBPS path targeting the disribtuion f. It requires x -> ∇log(f(x))
 #This requires bounce events and refreshment events
-SBPSSimulator = function (f, x0, lambda, T, delta; Tbrent = pi/4, tol = 1e-9,
-        sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)),
-        logdens = false)
+SBPSSimulator = function (gradlogf, x0, lambda, T, delta; Tbrent = pi/4, tol = 1e-9,
+        sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)))
     
-    #Start by ensuring we are working with a log-density
-    logdens || f = x -> log(f(x))
-
-    #Precalculate the gradient function for f (or derivative in d=1 case)
-    length(x0) > 1 ? gradf = x -> ForwardDiff.gradient(f,x) : gradf = x -> ForwardDiff.derivative(f,x)
-
-    #This line is here to precalculated the gradient function, and create a global variable for the gradient vector
-    mygrad = gradf(x0) 
-
     #Invert the matrix sigma
     sigmainv = inv(sigma)
 
@@ -41,8 +31,11 @@ SBPSSimulator = function (f, x0, lambda, T, delta; Tbrent = pi/4, tol = 1e-9,
     k = 2 #Track the next row to be added to output
     t0::Float64 = delta #Amount of time after an event until the next skeleton path sample time
 
+    #Placeholder for gradient variable
+    mygrad = zeros(d+1)
+
     #Set up Bounce rate function
-    bouncerate = SBPSRate(gradf)
+    bouncerate = SBPSRate(gradlogf)
 
     while left > 0
         #Simulate next refreshment time according to Exp(lambda)
@@ -57,7 +50,7 @@ SBPSSimulator = function (f, x0, lambda, T, delta; Tbrent = pi/4, tol = 1e-9,
         #Indictor of whether we are still looking for a bounce
         nobounce = true
 
-        while nobounce && taubounce < min(left,tauref)
+        while nobounce && taubounce <= min(left,tauref)
             #Find upper bound M on the bounce rate for current chunk
             M = -Brent(s -> bouncerate(s,z,v; sigma = sigma, mu = mu)[1],
                      l*Tbrent, (l+1)Tbrent, tol)[2]
@@ -89,10 +82,8 @@ SBPSSimulator = function (f, x0, lambda, T, delta; Tbrent = pi/4, tol = 1e-9,
             l += 1 #Increment number of Brent steps so far
         end
 
-        ########## Got to here
-        
         #Time until next event, or need new upper bound
-        t =
+        t = min(left, tauref, taubounce)
         
         #Update remaining path length
         left -= t 
@@ -120,12 +111,19 @@ SBPSSimulator = function (f, x0, lambda, T, delta; Tbrent = pi/4, tol = 1e-9,
             #Time to next observation time
             t0 += (floor((t-t0)/delta)+1)delta -t
         end
-        
+
         #Update position and velocity based on whether we had a refreshment event
-        if tauref <= left
-            z = cos(t)z + sin(t)v
+        if !nobounce
+            #Update position and temporarily set update velocity as required to bounce
+            (z,v) = (cos(t)z + sin(t)v, cos(t)v - sin(t)z)
+
+            #For bounce event, update velocity using SBPSBounce and gradient
+            v = SBPSBounce(z,v,mygrad)
+        elseif tauref < left
+            #For refreshment event, update velocity using SBPSRefresh
             v = SBPSRefresh(z)
         else
+            #If no event occured before the end of the path, simply follow the trajectory
             (z,v) = (cos(t)z + sin(t)v, cos(t)v - sin(t)z)
         end
     end

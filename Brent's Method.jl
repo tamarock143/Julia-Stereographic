@@ -4,7 +4,7 @@
 ParaSearch = function (f,a,b,c; fa = missing, fb = missing, fc = missing, triplet = false)
     #ParaSearch includes many fail cases, which we account for going into Brent's Method
     #Do we have a repeated point?
-    !(a != b != c) && return "Fail"
+    (a != b != c) || return "Fail"
 
     #If not provided, evaluate f at each point
     isequal(fa,missing) && (fa = f(a))
@@ -12,7 +12,7 @@ ParaSearch = function (f,a,b,c; fa = missing, fb = missing, fc = missing, triple
     isequal(fc,missing) && (fc = f(c))
 
     #Check points are well ordered
-    !(a<b<c) && (((a,fa),(b,fb),(c,fc)) = sort([(a,fa),(b,fb),(c,fc)], by = x -> x[1]))
+    (a<b<c) || (((a,fa),(b,fb),(c,fc)) = sort([(a,fa),(b,fb),(c,fc)], by = x -> x[1]))
 
     #Ensure we have suitable input to search for a minimum
     (fb > fa || fb > fc) && return "Fail"
@@ -43,7 +43,7 @@ GoldenSearch = function (f,a,b,c; fa = missing, fb = missing, fc = missing, trip
     isequal(fc,missing) && (fc = f(c))
     
     #Check points are well ordered
-    !(a<b<c) && (((a,fa),(b,fb),(c,fc)) = sort([(a,fa),(b,fb),(c,fc)], by = x -> x[1]))
+    (a<b<c) || (((a,fa),(b,fb),(c,fc)) = sort([(a,fa),(b,fb),(c,fc)], by = x -> x[1]))
 
     #Ensure we have suitable input
     (fb > fa || fb > fc) && error("No min in GoldenSearch")
