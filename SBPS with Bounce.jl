@@ -121,6 +121,10 @@ SBPSSimulator = function (gradlogf, x0, lambda, T, delta; Tbrent = pi/4, tol = 1
             #If no event occured before the end of the path, simply follow the trajectory
             (z,v) = (cos(t)z + sin(t)v, cos(t)v - sin(t)z)
         end
+        
+        #Perform Gram-Schmidt on (z,v) to account for incremental numerical errors
+        normalize!(z)
+        v = normalize(v - sum(z.*v)z)
     end
 
     #Ensure we have added final position and velocity
