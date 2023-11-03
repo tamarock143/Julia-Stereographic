@@ -5,7 +5,7 @@ using Random
 
 #We simulate an SBPS path targeting the disribtuion f. It requires x -> ∇log(f(x))
 #This requires bounce events and refreshment events
-SBPSSimulator = function (gradlogf, x0, lambda, T, delta; Tbrent = pi/8, tol = 1e-6,
+SBPSSimulator = function (gradlogf, x0, lambda, T, delta; Tbrent = pi/24, tol = 1e-6,
         sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)))
 
     z = SPinv(x0; sigma = sigma, mu = mu, isinv = false) #Map to the sphere
