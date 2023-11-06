@@ -107,13 +107,14 @@ SBPSSimulator = function (gradlogf, x0, lambda, T, delta; Tbrent = pi/24, tol = 
         end
 
         #Update position and velocity based on whether we had a refreshment event
-        if !nobounce
+        if taubounce < min(tauref,left)
             #Update position and temporarily set update velocity as required to bounce
             (z,v) = (cos(t)z + sin(t)v, cos(t)v - sin(t)z)
 
             #For bounce event, update velocity using SBPSBounce and gradient
             v = SBPSBounce(z,v,mygrad)
         elseif tauref < left
+            z = cos(t)z + sin(t)v
             #For refreshment event, update velocity using SBPSRefresh
             v = SBPSRefresh(z)
         else
