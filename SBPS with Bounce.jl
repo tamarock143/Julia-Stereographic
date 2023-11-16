@@ -134,8 +134,6 @@ SBPSSimulator = function (gradlogf, x0, lambda, T, delta; Tbrent = pi/24, tol = 
     return (z = zout, v = vout)
 end
 
-
-
 SBPSEventSimulator = function (gradlogf, x0, lambda, T; Tbrent = pi/24, tol = 1e-6,
     sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)))
 
