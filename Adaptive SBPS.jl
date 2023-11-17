@@ -10,7 +10,7 @@ end
 
 times
 
-SBPSSimulator = function (gradlogf, x0, lambda, T, delta, beta; Tbrent = pi/24, tol = 1e-6,
+SBPSSimulator = function (gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/24, tol = 1e-6,
     sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)))
 
     z = SPinv(x0; sigma = sigma, mu = mu, isinv = false) #Map to the sphere
@@ -22,6 +22,7 @@ SBPSSimulator = function (gradlogf, x0, lambda, T, delta, beta; Tbrent = pi/24, 
     #Prepare output
     zout = zeros(n,d+1)
     vout = zeros(n,d+1)
+    xout = zeros(n,d)
     
     totalleft::Float64 = (n-1)delta #Track remaining amount of time left until last observation
     k = 2 #Track the next row to be added to output
@@ -33,6 +34,7 @@ SBPSSimulator = function (gradlogf, x0, lambda, T, delta, beta; Tbrent = pi/24, 
     #Set up Bounce rate function
     bouncerate = SBPSRate(gradlogf)
 
+    #Set up adaptation times
     nadapt = ceil(((beta+1)T)^(1/(beta+1)))
     times = zeros(nadapt)
 
@@ -40,6 +42,17 @@ SBPSSimulator = function (gradlogf, x0, lambda, T, delta, beta; Tbrent = pi/24, 
         times[i] = 2^findfirst(map(x -> 2^x, 0:10) .>= i^beta)
     end
 
+    #Prepare estimators for mu and sigma
+    #m and s2 track sums we will need to iteratively update the estimators
+    m = zeros(d)
+    s2 = I(d)
+
+    #muest and sigmaest are the estimators
+    muest = zeros(nadapt+1, d)
+    sigmaest = fill(sqrt(d)I(d),nadapt+1)
+
+    muest[1,:] = mu
+    sigmaest[1] = sigma
     
     while left > 0
         #Simulate next refreshment time according to Exp(lambda)
