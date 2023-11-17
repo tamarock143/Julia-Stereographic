@@ -87,10 +87,8 @@ SBPSSimulator = function(gradlogf, x0, lambda, T, delta; Tbrent = pi/24, tol = 1
             #Simulate the next piece of the path
             (zpath,vpath) = SBPSDetPath(z,v,t,delta; t0)
 
-            #Number of rows to add.
+            #Number of rows to add
             nadd = size(zpath)[1]
-
-            k + nadd -1 > n && error("something strange happened with adding rows")
 
             #Append this piece to the output
             zout[k:k+nadd-1,:] = zpath
