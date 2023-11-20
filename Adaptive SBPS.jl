@@ -42,7 +42,7 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
 
     #muest and sigmaest are the estimators
     muest = zeros(nadapt+1, d)
-    sigmaest = fill(sqrt(d)I(d),nadapt+1)
+    sigmaest = fill(zeros(d,d),nadapt+1)
 
     muest[1,:] = mu
     sigmaest[1] = sigma
@@ -72,8 +72,6 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
             #Note we will have difficulty with storing the velocities at adaptation times
             vout[k-1:k+pathlength-3,:] = vpath[1:end-1,:]
 
-            #If this is the final section, input final velocity value
-            t == times[end] && vout[end,:] = vpath[end,:]
         else
             #Append this piece to the output
             zout[1:pathlength,:] = zpath
@@ -109,6 +107,32 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
 
         #Update mu and sigma estimators, but first check they are valid
         mutemp = m/(k-1)
-        sigmatemp = sqrt(d)*(s2 - (k-1)*mutemp*mutemp')/(k-2)
+        sigmatemp = Symmetric(sqrt(d)*(s2 - (k-1)*mutemp*mutemp')/(k-2))
+
+        #Reduce norm of mean estimate if necessary
+        (rtemp = sqrt(sum(mutemp.^2))) > R ? muest[iadapt,:] = R*mutemp/rtemp : muest[iadapt,:] = mutemp
+
+        #Diagonalise the covariance estimator
+        (evalstemp,evecstemp) = eigen(sigmatemp)
+
+        #Assume there are no bad eigenvalues
+        badvals = false
+
+        #Truncate eigenvalues
+        for i in 1:d
+            if evalstemp[i] > R
+                evalstemp[i] = R
+                badvals = true
+            elseif evalstemp[i] < r
+                evalstemp[i] = r
+                badvals = true
+            end
+        end
+
+        #If we had to correct any eigenvalues, update the estimate accordingly
+        badvals ? sigmaest[iadapt] = evecstemp*Diagonal(evalstemp)*evecstemp' : sigmaest[iadapt] = sigmatemp
     end
+    
+    #Input final velocity value
+    vout[end,:] = vpath[end,:]
 end
