@@ -29,11 +29,20 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
     #Include initial burn-in period
     times[1] = burnin
 
-    for i in 2:nadapt
+    i=2
+
+    while sum(times) < left
         #For theoretical guarantees, we ensure increasing common divisor to lags
         #For practical reasons, ensure adaptation times are an integer number of skeleton steps
         times[i] = burnin*ceil(1/delta)delta*2^findfirst(map(x -> 2^x, 0:nadapt) .>= i^beta)
+
+        #Iterate length of times
+        i += 1
     end
+
+    #Shrink length of adaptive times vector
+    nadapt = i-1
+    times = times[1:nadapt]
 
     #Prepare estimators for mu and sigma
     #m and s2 track sums we will need to iteratively update the estimators
@@ -61,6 +70,8 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
         #Update how much time is left
         left >= t ? left -= t : left = 0
         
+        println(left)
+        
         #Number of rows to add (note that the start of the current path is the end of the previous one for z)
         pathlength = size(zpath)[1]
 
@@ -72,6 +83,8 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
             #Note we will have difficulty with storing the velocities at adaptation times
             vout[k-1:k+pathlength-3,:] = vpath[1:end-1,:]
 
+            #Input final velocity value if needed
+            left == 0 && (vout[end,:] = vpath[end,:])
         else
             #Append this piece to the output
             zout[1:pathlength,:] = zpath
@@ -132,7 +145,6 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
         #If we had to correct any eigenvalues, update the estimate accordingly
         badvals ? sigmaest[iadapt] = evecstemp*Diagonal(evalstemp)*evecstemp' : sigmaest[iadapt] = sigmatemp
     end
-    
-    #Input final velocity value
-    vout[end,:] = vpath[end,:]
+
+    return (x = xout, z = zout, v = vout, mu = muest, sigma = sigmaest, times = times)
 end
