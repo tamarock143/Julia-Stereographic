@@ -71,6 +71,9 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
 
             #Note we will have difficulty with storing the velocities at adaptation times
             vout[k-1:k+pathlength-3,:] = vpath[1:end-1,:]
+
+            #If this is the final section, input final velocity value
+            t == times[end] && vout[end,:] = vpath[end,:]
         else
             #Append this piece to the output
             zout[1:pathlength,:] = zpath
@@ -79,18 +82,33 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
             vout[1:pathlength-1,:] = vpath[1:end-1,:]
         end
 
+        #Set up x projected path
+        xpath = zeros(pathlength-1,d)
+
         #Project each entry back to R^d
-        for i in k:k+pathlength-2
-            xout[i,:] = SP(zout[i,:]; sigma = sigmaest[iadapt], mu = muest[iadapt])
+        for i in 2:pathlength
+            xpath[i-1,:] = SP(zpath[i,:]; sigma = sigmaest[iadapt], mu = muest[iadapt])
+        end
+
+        #Record this section of the x path
+        xout[k:k+pathlength-2,:] = xpath
+
+        #Update column sums
+        m .+= sum(xpath, dims = 1)'
+
+        #Update sum for covariance estimator
+        for i in 1:pathlength-1
+            s2 += xpath[i,:]*xpath[i,:]'
         end
 
         #Increment next row to add
         k += pathlength -1
 
-        m = sum()
+        #Increment which adaptive step we are at
+        iadapt += 1
+
+        #Update mu and sigma estimators, but first check they are valid
+        mutemp = m/(k-1)
+        sigmatemp = sqrt(d)*(s2 - (k-1)*mutemp*mutemp')/(k-2)
     end
-    
-    #Ensure we have added final position and velocity
-    zout[n,:] = z
-    vout[n,:] = v
 end
