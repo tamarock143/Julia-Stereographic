@@ -120,7 +120,7 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
 
         #Update mu and sigma estimators, but first check they are valid
         mutemp = m/(k-1)
-        sigmatemp = Symmetric(sqrt(d)*(s2 - (k-1)*mutemp*mutemp')/(k-2))
+        sigmatemp = Symmetric(d*(s2 - (k-1)*mutemp*mutemp')/(k-2))
 
         #Reduce norm of mean estimate if necessary
         (rtemp = sqrt(sum(mutemp.^2))) > R ? muest[iadapt,:] = R*mutemp/rtemp : muest[iadapt,:] = mutemp
@@ -128,22 +128,19 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
         #Diagonalise the covariance estimator
         (evalstemp,evecstemp) = eigen(sigmatemp)
 
-        #Assume there are no bad eigenvalues
-        badvals = false
-
         #Truncate eigenvalues
         for i in 1:d
-            if evalstemp[i] > R
-                evalstemp[i] = R
+            if evalstemp[i] > R^2
+                evalstemp[i] = R^2
                 badvals = true
-            elseif evalstemp[i] < r
-                evalstemp[i] = r
+            elseif evalstemp[i] < r^2
+                evalstemp[i] = r^2
                 badvals = true
             end
         end
-
-        #If we had to correct any eigenvalues, update the estimate accordingly
-        badvals ? sigmaest[iadapt] = evecstemp*Diagonal(evalstemp)*evecstemp' : sigmaest[iadapt] = sigmatemp
+        
+        #Output sigma estimator, equal to 
+        sigmaest[iadapt] = evecstemp*Diagonal(sqrt.(evalstemp))*evecstemp'
     end
 
     return (x = xout, z = zout, v = vout, mu = muest, sigma = sigmaest, times = times)
