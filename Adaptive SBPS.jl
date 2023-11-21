@@ -63,14 +63,14 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
         #If we've run the full time, end the process
         left == 0 && break
 
+        println("Adaptations so far: ", iadapt, "/", nadapt)
+        
         #Run the process with the given parameters
         (zpath,vpath) = SBPSSimulator(gradlogf, xout[k-1,:], lambda, min(t,left), delta; 
         Tbrent, tol, sigma = sigmaest[iadapt], mu = muest[iadapt,:])
 
         #Update how much time is left
         left >= t ? left -= t : left = 0
-        
-        println(left)
         
         #Number of rows to add (note that the start of the current path is the end of the previous one for z)
         pathlength = size(zpath)[1]

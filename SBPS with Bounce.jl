@@ -120,6 +120,8 @@ SBPSSimulator = function(gradlogf, x0, lambda, T, delta; Tbrent = pi/24, tol = 1
         #Update remaining path length
         left -= t 
         
+        print("\rTime left: $left")
+        
         #Perform Gram-Schmidt on (z,v) to account for incremental numerical errors
         normalize!(z)
         v = normalize(v - sum(z.*v)z)
@@ -128,6 +130,9 @@ SBPSSimulator = function(gradlogf, x0, lambda, T, delta; Tbrent = pi/24, tol = 1
     #Ensure we have added final position and velocity
     zout[n,:] = z
     vout[n,:] = v
+
+    #Move to new line
+    print("\n")
 
     return (z = zout, v = vout)
 end
