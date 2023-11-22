@@ -46,8 +46,8 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
 
     #Prepare estimators for mu and sigma
     #m and s2 track sums we will need to iteratively update the estimators
-    m = zeros(d)
-    s2 = zeros(d,d)
+    m::Vector{Float64} = mu
+    s2::Matrix{Float64} = sigma
 
     #muest and sigmaest are the estimators
     muest = zeros(nadapt+1, d)
@@ -104,23 +104,25 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
         #Record this section of the x path
         xout[k:k+pathlength-2,:] = xpath
 
-        #Update column sums
-        m .+= sum(xpath, dims = 1)'
-
-        #Update sum for covariance estimator
-        for i in 1:pathlength-1
-            s2 += xpath[i,:]*xpath[i,:]'
-        end
-
         #Increment next row to add
         k += pathlength -1
 
+        #Update column sums
+        m .+= sum(xpath, dims = 1)'
+
+        #Placeholder for mu update
+        mutemp = m/k
+
+        #Update sum for covariance estimator
+        for i in 1:k-1
+            s2 += (xout[i,:] - mutemp)*(xout[i,:] - mutemp)'
+        end
+
+        #Placeholder for sigma update
+        sigmatemp = Symmetric(d*s2/(k-1))
+
         #Increment which adaptive step we are at
         iadapt += 1
-
-        #Update mu and sigma estimators, but first check they are valid
-        mutemp = m/(k-1)
-        sigmatemp = Symmetric(d*(s2 - (k-1)*mutemp*mutemp')/(k-2))
 
         #Reduce norm of mean estimate if necessary
         (rtemp = sqrt(sum(mutemp.^2))) > R ? muest[iadapt,:] = R*mutemp/rtemp : muest[iadapt,:] = mutemp
@@ -132,14 +134,12 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
         for i in 1:d
             if evalstemp[i] > R^2
                 evalstemp[i] = R^2
-                badvals = true
             elseif evalstemp[i] < r^2
                 evalstemp[i] = r^2
-                badvals = true
             end
         end
         
-        #Output sigma estimator, equal to 
+        #Output sigma estimator, equal to sqrt of covariance estimator
         sigmaest[iadapt] = evecstemp*Diagonal(sqrt.(evalstemp))*evecstemp'
     end
 
