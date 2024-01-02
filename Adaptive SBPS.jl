@@ -67,7 +67,7 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
         println("Length of run: ", min(t,left))
         
         #Run the process with the given parameters
-        (zpath,vpath) = SBPSSimulator(gradlogf, xout[k-1,:], lambda, min(t,left), delta; 
+        @time (zpath,vpath) = SBPSSimulator(gradlogf, xout[k-1,:], lambda, min(t,left), delta; 
         Tbrent, tol, sigma = sigmaest[iadapt], mu = muest[iadapt,:])
 
         #Update how much time is left
@@ -115,12 +115,13 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
         mutemp = m/k
 
         #Update sum for covariance estimator
-        for i in 1:k-1
-            s2 += (xout[i,:] - mutemp)*(xout[i,:] - mutemp)'
+        for x in eachrow(xpath)
+            s2 += x*x'
         end
 
         #Placeholder for sigma update
-        sigmatemp = Symmetric(d*s2/(k-1))
+        sigmatemp = d*Symmetric(s2/k - mutemp*mutemp')
+
 
         #Increment which adaptive step we are at
         iadapt += 1
