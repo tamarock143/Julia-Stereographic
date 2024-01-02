@@ -63,7 +63,8 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
         #If we've run the full time, end the process
         left == 0 && break
 
-        println("Adaptations so far: ", iadapt, "/", nadapt)
+        println("Adaptation number: ", iadapt, "/", nadapt)
+        println("Length of run: ", min(t,left))
         
         #Run the process with the given parameters
         (zpath,vpath) = SBPSSimulator(gradlogf, xout[k-1,:], lambda, min(t,left), delta; 
@@ -108,7 +109,7 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
         k += pathlength -1
 
         #Update column sums
-        m .+= sum(xpath, dims = 1)'
+        m += vec(sum(xpath, dims = 1))
 
         #Placeholder for mu update
         mutemp = m/k
