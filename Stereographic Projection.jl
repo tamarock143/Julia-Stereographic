@@ -1,6 +1,5 @@
 #Import LinearAlgebra library
 using LinearAlgebra
-using ForwardDiff
 
 ## Stereographic Projection ##
 
