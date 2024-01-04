@@ -20,9 +20,11 @@ LeapFrog = function (gradlogf, x, p, delta, L; Minv = I(length(x)))
 end
 
 #HMC Algorithm
-HMC = function (gradlogf, x0, N::BigInt, delta, L; M = I(length(x0)))
+HMC = function (logf, gradlogf, x0, N, delta, L; M = I(length(x0)))
     d = length(x0) #The dimension
+
     Minv = inv(M) #Invert M preemptively
+    Msqrt = sqrt(M) #Sqrt M preemptively
 
     xout = zeros(N,d) #Prepare output
     xout[1,:] = x0
@@ -32,8 +34,23 @@ HMC = function (gradlogf, x0, N::BigInt, delta, L; M = I(length(x0)))
 
     for n in 2:N
         #Initialise velocity
-        p = sqrt(M)*randn(d)
+        p = Msqrt*randn(d)
 
+        #Apply Leapfrog integrator to get proposals
+        (xprime, pprime) = LeapFrog(gradlogf, x, p, delta, L; Minv = Minv)
 
+        #Compute acceptance probability
+        a = -logf(x) + logf(xprime) + (p'*Minv*p - pprime'*Minv*pprime)/2
+
+        u = log(rand(Float64)) #Simulate from uniform to accept/reject
+
+        if u < a #Accept proposal
+            xout[n,:] = xprime
+            x = xprime #Update position
+        else #Reject proposal
+            xout[n,:] = x
+        end
     end
+
+    return (x = xout)
 end
