@@ -120,6 +120,7 @@ SBPSSimulator = function(gradlogf, x0, lambda, T, delta; Tbrent = pi/24, tol = 1
         #Update remaining path length
         left -= t 
         
+        #Print time left
         print("\rTime left: $left")
         
         #Perform Gram-Schmidt on (z,v) to account for incremental numerical errors

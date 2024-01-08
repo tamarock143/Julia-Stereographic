@@ -33,6 +33,9 @@ HMC = function (logf, gradlogf, x0, N, delta, L; M = I(length(x0)))
     p = zeros(d) #Velocity vector, will be reinitialised according to Normal(0,M) at each step
 
     for n in 2:N
+        #Print iteration number
+        print("\rStep number: $n")
+
         #Initialise velocity
         p = Msqrt*randn(d)
 
@@ -51,6 +54,7 @@ HMC = function (logf, gradlogf, x0, N, delta, L; M = I(length(x0)))
             xout[n,:] = x
         end
     end
+    println()
 
     return (x = xout)
 end
