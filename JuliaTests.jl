@@ -9,7 +9,7 @@ using StatsBase
 d = 200
 sigma = sqrt(d)I(d)
 mu = zeros(d)
-nu = d
+nu = 3
 
 f = x -> -sum(x.^2)/2
 
@@ -24,7 +24,7 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 100
+T = 10
 delta = 0.1
 Tbrent = pi/100
 tol = 1e-6
@@ -47,7 +47,7 @@ FullSBPS = function ()
 
     #Project each entry back to R^d
     for i in 1:n
-        xout[i,:] = SP(zout[i,:]; sigma = sigma, mu = mu)
+        xout[i,:] = SP(zout[i,:]; sigma = nu/(nu-2)*sigma, mu = mu)
     end
 
     return (z = zout, v = vout, x = xout)
@@ -63,8 +63,8 @@ q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
 b_range = range(-5,5, length=101)
 
 histogram(out.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
-plot!([q p], label= ["t" "N(0,1)"], lw=3)
-#plot!(p, label= "N(0,1)", lw=3)
+#plot!([q p], label= ["t" "N(0,1)"], lw=3)
+plot!(q, label= "t", lw=3)
 xlabel!("x")
 ylabel!("P(x)")
 
