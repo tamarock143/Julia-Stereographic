@@ -9,11 +9,11 @@ using StatsBase
 d = 200
 sigma = sqrt(d)I(d)
 mu = zeros(d)
-nu = 3
+nu = d
 
-f = x -> -(nu+d)/2 * log(nu+ sum(x.^2))
+f = x -> -sum(x.^2)/2
 
-x0 = zeros(d) .+ 1000
+x0 = randn(d)
 
 length(x0) > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
 
@@ -24,23 +24,23 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 10
+T = 100
 delta = 0.1
 Tbrent = pi/100
 tol = 1e-6
 lambda = 1
 
-beta = 1
-burnin = 10
-R = 1e6
-r = 1e-6
+beta = 1.5
+burnin = 100
+R = 1e12
+r = 1e-12
 
-#out = SBPSAdaptive(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = Tbrent, tol = tol,
-#sigma = sigma, mu = mu, burnin = burnin);
+@time out = SBPSAdaptive(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = Tbrent, tol = tol,
+sigma = sigma, mu = mu, burnin = burnin);
 
 FullSBPS = function ()
     (zout,vout) = SBPSSimulator(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, tol = tol,
-    sigma = nu/(nu-2)*sigma, mu = mu);
+    sigma = sigma, mu = mu);
 
     n = floor(BigInt, T/delta)+1 #Total number of observations of the skeleton path
     xout = zeros(n,d)
@@ -53,14 +53,14 @@ FullSBPS = function ()
     return (z = zout, v = vout, x = xout)
 end
 
-@time out = FullSBPS();
+#@time out = FullSBPS();
 
 #Plot comparison against the true distribution
 p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 #q(x) = 1/sqrt(2pi*sigmaf)*exp(-x^2/2sigmaf)
 #p(x) = 1/2*exp(-abs(x))
 q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
-b_range = range(-8,8, length=101)
+b_range = range(-5,5, length=101)
 
 histogram(out.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
 plot!([q p], label= ["t" "N(0,1)"], lw=3)
@@ -112,3 +112,7 @@ plot(out[:,1],out[:,2])
 xnorms = sum(out.^2, dims=2)
 plot(1:N,sqrt.(xnorms), label = "||x||")
 
+
+### Misc Tests
+
+plot(log.(eigen(cov(out.x)).values[90:160] .+ 1e-15))
