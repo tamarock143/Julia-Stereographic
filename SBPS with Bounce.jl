@@ -127,6 +127,8 @@ SBPSSimulator = function(gradlogf, x0, lambda, T, delta; Tbrent = pi/24, tol = 1
         normalize!(z)
         v = normalize(v - sum(z.*v)z)
     end
+    #Go to newline
+    print("\n")
 
     #Ensure we have added final position and velocity
     zout[n,:] = z
