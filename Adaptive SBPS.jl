@@ -41,7 +41,7 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
     end
 
     #Shrink length of adaptive times vector
-    nadapt = i-1
+    nadapt = i
     times = times[1:nadapt]
 
     #Prepare estimators for mu and sigma
