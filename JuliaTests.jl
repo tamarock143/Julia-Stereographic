@@ -115,4 +115,5 @@ plot(1:N,sqrt.(xnorms), label = "||x||")
 
 ### Misc Tests
 
-plot(log.(eigen(cov(out.x)).values[90:160] .+ 1e-15))
+X = randn(10000,10)
+eigen(cov(X)).values

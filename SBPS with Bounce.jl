@@ -121,7 +121,7 @@ SBPSSimulator = function(gradlogf, x0, lambda, T, delta; Tbrent = pi/24, tol = 1
         left -= t 
         
         #Print time left
-        print("\rTime left: $left")
+        print("Time left: $left\r")
         
         #Perform Gram-Schmidt on (z,v) to account for incremental numerical errors
         normalize!(z)
@@ -131,9 +131,6 @@ SBPSSimulator = function(gradlogf, x0, lambda, T, delta; Tbrent = pi/24, tol = 1
     #Ensure we have added final position and velocity
     zout[n,:] = z
     vout[n,:] = v
-
-    #Move to new line
-    print("\n")
 
     return (z = zout, v = vout)
 end
