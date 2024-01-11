@@ -9,7 +9,7 @@ using StatsBase
 d = 200
 sigma = sqrt(d)I(d)
 mu = zeros(d)
-nu = 3
+#nu = 3
 
 f = x -> -sum(x.^2)/2
 
@@ -21,19 +21,18 @@ length(x0) > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> For
 gradlogf(x0)
 
 
-
 ### SBPS Testing
 
-T = 10
+T = 5000
 delta = 0.1
 Tbrent = pi/100
 tol = 1e-6
 lambda = 1
 
-beta = 1.5
+beta = 1.1
 burnin = 100
-R = 1e12
-r = 1e-12
+R = 1e6
+r = 1e-6
 
 @time out = SBPSAdaptive(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = Tbrent, tol = tol,
 sigma = sigma, mu = mu, burnin = burnin);
@@ -47,7 +46,7 @@ FullSBPS = function ()
 
     #Project each entry back to R^d
     for i in 1:n
-        xout[i,:] = SP(zout[i,:]; sigma = nu/(nu-2)*sigma, mu = mu)
+        xout[i,:] = SP(zout[i,:]; sigma = sigma, mu = mu)
     end
 
     return (z = zout, v = vout, x = xout)
@@ -58,13 +57,12 @@ end
 #Plot comparison against the true distribution
 p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 #q(x) = 1/sqrt(2pi*sigmaf)*exp(-x^2/2sigmaf)
-#p(x) = 1/2*exp(-abs(x))
-q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
+#q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
 b_range = range(-5,5, length=101)
 
 histogram(out.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
-#plot!([q p], label= ["t" "N(0,1)"], lw=3)
-plot!(q, label= "t", lw=3)
+plot!(p, label= "N(0,1)", lw=3)
+#plot!(q, label= "t", lw=3)
 xlabel!("x")
 ylabel!("P(x)")
 
@@ -78,6 +76,7 @@ plot(out.x[:,1],out.x[:,2])
 
 xnorms = sum(out.x.^2, dims=2)
 plot(0:delta:T,sqrt.(xnorms), label = "||x||")
+vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
 
 plot(0:delta:T,out.z[:,end], label = "z_{d+1}")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
@@ -115,5 +114,7 @@ plot(1:N,sqrt.(xnorms), label = "||x||")
 
 ### Misc Tests
 
-X = randn(10000,10)
-eigen(cov(X)).values
+X = randn(1000,200)
+plot(log.(1 .+ eigen(cov(X)).values), label = "iid")
+plot(log.(1 .+ eigen(cov(out.x)).values), label = "SBPS")
+plot!(x -> log(2), label = "theoretical")
