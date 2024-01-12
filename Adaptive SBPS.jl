@@ -70,10 +70,10 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
         
         #Run the process with the given parameters
         @time (zpath,vpath) = SBPSSimulator(gradlogf, xout[k-1,:], lambda, min(t,left), delta; 
-        w0 = w, Tbrent, tol, sigma = sigmaest[iadapt], mu = muest[iadapt,:])
+        w, Tbrent, tol, sigma = sigmaest[iadapt], mu = muest[iadapt,:])
 
         #Record final w value
-        w = v[1:d] + v[d+1]*z[1:d]/(1 - z[d+1])
+        w = vpath[end,1:d] + vpath[end,d+1]*zpath[end,1:d]/(1 - zpath[end,d+1])
         normalize!(w)
 
         #Update how much time is left

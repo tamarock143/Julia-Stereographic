@@ -5,7 +5,7 @@ using Random
 
 #We simulate an SBPS path targeting the disribtuion f. It requires x -> ∇log(f(x))
 #This requires bounce events and refreshment events
-SBPSSimulator = function(gradlogf, x0, lambda, T, delta; w0 = missing, Tbrent = pi/24, tol = 1e-6,
+SBPSSimulator = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = pi/24, tol = 1e-6,
         sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)))
     
     z = SPinv(x0; sigma = sigma, mu = mu, isinv = false) #Map to the sphere
@@ -13,16 +13,16 @@ SBPSSimulator = function(gradlogf, x0, lambda, T, delta; w0 = missing, Tbrent = 
     d = length(x0) #The dimension
 
     #Check that w is a unit vector (or missing)
-    w0 == missing || abs(sum(w0.^2) -1) <= 1e-12 || error("norm(w0) != 1")
+    ismissing(w) || abs(sum(w.^2) -1) <= 1e-12 || error("norm(w) != 1")
 
-    #Initialize velocity. If we have a spcified w0, use it for the initial velocity
-    if w0 == missing
+    #Initialize velocity. If we have a spcified w, use it for the initial velocity
+    if ismissing(w)
         v = SBPSRefresh(z)
     else
         v = zeros(d+1)
-        v[d+1] = sum(w0.*z)
-        v[1:d] = w0[1:d] - v[d]*z[1:d]/(1-z[d+1])
-        normalize!(v)
+        v[d+1] = sum(w.*z[1:d])
+        v[1:d] = w[1:d] - v[d]*z[1:d]/(1-z[d+1])
+        v = normalize(v - sum(z.*v)z) #Normalize for regularity
     end
 
     n = floor(BigInt, T/delta)+1 #Total number of observations of the skeleton path

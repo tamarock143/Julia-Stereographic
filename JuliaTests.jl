@@ -8,12 +8,12 @@ using StatsBase
 
 d = 200
 sigma = sqrt(d)I(d)
-mu = zeros(d) .+ 100
+mu = zeros(d)
 nu = 200
 
 f = x -> -(nu + d)/2 * log(nu + sum(x.^2))
 
-x0 = randn(d) .+ 100
+x0 = randn(d)
 
 length(x0) > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
 
@@ -38,7 +38,7 @@ r = 1e-6
 sigma = sigma, mu = mu, burnin = burnin);
 
 FullSBPS = function ()
-    (zout,vout) = SBPSSimulator(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, tol = tol,
+    (zout,vout) = SBPSSimulator(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = Tbrent, tol = tol,
     sigma = sigma, mu = mu);
 
     n = floor(BigInt, T/delta)+1 #Total number of observations of the skeleton path
@@ -60,7 +60,7 @@ p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
 b_range = range(-5,5, length=101)
 
-histogram(out.x[7500:end,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
+histogram(out.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
 plot!(p, label= "N(0,1)", lw=3)
 plot!(q, label= "t", lw=3)
 xlabel!("x")
