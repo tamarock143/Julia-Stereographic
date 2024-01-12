@@ -29,19 +29,19 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
     #Include initial burn-in period
     times[1] = burnin
 
-    i=2
+    i=1
 
     while sum(times) < left
         #For theoretical guarantees, we ensure increasing common divisor to lags
         #For practical reasons, ensure adaptation times are an integer number of skeleton steps
-        times[i] = burnin*ceil(1/delta)delta*2^findfirst(map(x -> 2^x, 0:nadapt) .>= i^beta)
+        times[i+1] = burnin*ceil(1/delta)delta*2^findfirst(map(x -> 2^x, 0:nadapt) .>= i^beta)
 
         #Iterate length of times
         i += 1
     end
 
     #Shrink length of adaptive times vector
-    nadapt = i-1
+    nadapt = i
     times = times[1:nadapt]
 
     #Prepare estimators for mu and sigma
@@ -119,27 +119,27 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
             s2 += x*x'
         end
 
-        #Placeholder for sigma update
-        sigmatemp = d*Symmetric(s2/k - mutemp*mutemp')
+        #Reduce norm of mean estimate if necessary
+        rtemp = sum(mutemp.^2)
+        rtemp > R^2 && (mutemp *= R/rtemp)
 
+        #Placeholder for sigma update
+        #We include the +r^2I(d) term to get lower bounds on the eigenvalues
+        sigmatemp = d*Symmetric(s2/k - mutemp*mutemp') + r^2*I(d)
 
         #Increment which adaptive step we are at
         iadapt += 1
 
-        #Reduce norm of mean estimate if necessary
-        (rtemp = sqrt(sum(mutemp.^2))) > R ? muest[iadapt,:] = R*mutemp/rtemp : muest[iadapt,:] = mutemp
-
         #Diagonalise the covariance estimator
         (evalstemp,evecstemp) = eigen(sigmatemp)
 
-        #Truncate eigenvalues
+        #Truncate large eigenvalues
         for i in 1:d
-            if evalstemp[i] > R^2
-                evalstemp[i] = R^2
-            elseif evalstemp[i] < r^2
-                evalstemp[i] = r^2
-            end
+            evalstemp[i] > R^2 && (evalstemp[i] = R^2)
         end
+
+        #Output mean estimator
+        muest[iadapt,:] = mutemp
         
         #Output sigma estimator, equal to sqrt of covariance estimator
         sigmaest[iadapt] = evecstemp*Diagonal(sqrt.(evalstemp))*evecstemp'
