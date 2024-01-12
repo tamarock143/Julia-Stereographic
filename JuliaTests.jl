@@ -23,14 +23,14 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 5000
+T = 1000
 delta = 0.1
 Tbrent = pi/100
 tol = 1e-6
 lambda = 1
 
 beta = 1.1
-burnin = 100
+burnin = 1000
 R = 1e6
 r = 1e-6
 
@@ -114,7 +114,8 @@ plot(1:N,sqrt.(xnorms), label = "||x||")
 
 ### Misc Tests
 
-X = randn(1000,200)
-plot(log.(1 .+ eigen(cov(X)).values), label = "iid")
-plot(log.(1 .+ eigen(cov(out.x)).values), label = "SBPS")
-plot!(x -> log(2), label = "theoretical")
+X = randn(10000,200)
+plot(log.(1 .+ sqrt.(d*eigen(cov(X)).values)), label = "iid")
+plot!(log.(1 .+ sqrt.(eigen(d*cov(out.x, corrected = false)).values)), label = "SBPS")
+plot!(log.(1 .+ eigen(out.sigma[end]).values), label = "SBPS Est")
+plot!(x -> log(1+sqrt(d)), label = "theoretical")
