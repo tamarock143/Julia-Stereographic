@@ -73,7 +73,8 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
         w0 = w, Tbrent, tol, sigma = sigmaest[iadapt], mu = muest[iadapt,:])
 
         #Record final w value
-        w = v[1:d-1]
+        w = v[1:d] + v[d+1]*z[1:d]/(1 - z[d+1])
+        normalize!(w)
 
         #Update how much time is left
         left >= t ? left -= t : left = 0

@@ -22,6 +22,7 @@ SBPSSimulator = function(gradlogf, x0, lambda, T, delta; w0 = missing, Tbrent = 
         v = zeros(d+1)
         v[d+1] = sum(w0.*z)
         v[1:d] = w0[1:d] - v[d]*z[1:d]/(1-z[d+1])
+        normalize!(v)
     end
 
     n = floor(BigInt, T/delta)+1 #Total number of observations of the skeleton path
