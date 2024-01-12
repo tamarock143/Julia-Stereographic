@@ -8,12 +8,12 @@ using StatsBase
 
 d = 200
 sigma = sqrt(d)I(d)
-mu = zeros(d)
-#nu = 3
+mu = zeros(d) .+ 100
+nu = 200
 
-f = x -> -sum(x.^2)/2
+f = x -> -(nu + d)/2 * log(nu + sum(x.^2))
 
-x0 = randn(d)
+x0 = randn(d) .+ 100
 
 length(x0) > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
 
@@ -27,10 +27,10 @@ T = 1000
 delta = 0.1
 Tbrent = pi/100
 tol = 1e-6
-lambda = 1
+lambda = 0.2
 
 beta = 1.1
-burnin = 1000
+burnin = 20
 R = 1e6
 r = 1e-6
 
@@ -57,19 +57,19 @@ end
 #Plot comparison against the true distribution
 p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 #q(x) = 1/sqrt(2pi*sigmaf)*exp(-x^2/2sigmaf)
-#q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
+q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
 b_range = range(-5,5, length=101)
 
-histogram(out.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
+histogram(out.x[7500:end,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
 plot!(p, label= "N(0,1)", lw=3)
-#plot!(q, label= "t", lw=3)
+plot!(q, label= "t", lw=3)
 xlabel!("x")
 ylabel!("P(x)")
 
 plot(0:delta:T,out.x[:,1], label = "x")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
 
-map(x -> sum(x -> x^2, x - mu), eachrow(out.mu))
+map(x -> sum(x -> x^2, x), eachrow(out.mu))
 map(x -> sum(x -> x^2, eigen(x - sqrt(d)I(d)).values), out.sigma)
 
 plot(out.x[:,1],out.x[:,2])
@@ -90,7 +90,7 @@ savefig("NormalAdapt500.pdf")
 delta = 0.1
 L = 5
 M = I(d)
-N::BigInt = 1e5
+N::BigInt = 1e6
 
 @time out = HMC(f, gradlogf, x0, N, delta, L; M = M);
 
