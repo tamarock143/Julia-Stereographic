@@ -8,6 +8,8 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
 
     n = floor(BigInt, T/delta)+1 #Total number of observations of the skeleton path
 
+    w = missing #Initialize w
+
     #Prepare output
     zout = zeros(n,d+1)
     vout = zeros(n,d+1)
@@ -68,7 +70,11 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
         
         #Run the process with the given parameters
         @time (zpath,vpath) = SBPSSimulator(gradlogf, xout[k-1,:], lambda, min(t,left), delta; 
-        Tbrent, tol, sigma = sigmaest[iadapt], mu = muest[iadapt,:])
+        w, Tbrent, tol, sigma = sigmaest[iadapt], mu = muest[iadapt,:])
+
+        #Record final w value
+        w = vpath[end,1:d] + vpath[end,d+1]*zpath[end,1:d]/(1 - zpath[end,d+1])
+        normalize!(w)
 
         #Update how much time is left
         left >= t ? left -= t : left = 0
