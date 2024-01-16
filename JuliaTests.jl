@@ -9,11 +9,11 @@ using StatsBase
 d = 200
 sigma = sqrt(d)I(d)
 mu = zeros(d)
-#nu = 3
+nu = 200
 
-f = x -> -sum(x.^2)/2
+f = x -> -(nu+d)/2*log(nu + sum(x.^2))
 
-x0 = randn(d)
+x0 = randn(d) .+ 100000
 
 length(x0) > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
 
@@ -23,9 +23,9 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 1000
+T = 10
 delta = 0.1
-Tbrent = pi/100
+Tbrent = pi/50
 tol = 1e-6
 lambda = 1
 
@@ -55,14 +55,14 @@ end
 #@time out = FullSBPS();
 
 #Plot comparison against the true distribution
-p(x) = 1/sqrt(2pi)*exp(-x^2/2)
+#p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 #q(x) = 1/sqrt(2pi*sigmaf)*exp(-x^2/2sigmaf)
-#q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
+q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
 b_range = range(-5,5, length=101)
 
 histogram(out.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
-plot!(p, label= "N(0,1)", lw=3)
-#plot!(q, label= "t", lw=3)
+#plot!(p, label= "N(0,1)", lw=3)
+plot!(q, label= "t", lw=3)
 xlabel!("x")
 ylabel!("P(x)")
 
@@ -74,9 +74,13 @@ map(x -> sum(x -> x^2, eigen(x - sqrt(d)I(d)).values), out.sigma)
 
 plot(out.x[:,1],out.x[:,2])
 
+plot(autocor(out.x[:,1]))
+
 xnorms = sum(out.x.^2, dims=2)
 plot(0:delta:T,sqrt.(xnorms), label = "||x||")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
+
+plot(autocor(xnorms))
 
 plot(0:delta:T,out.z[:,end], label = "z_{d+1}")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
@@ -97,7 +101,7 @@ N::BigInt = 1e5
 #Plot comparison against the true distribution
 p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
-b_range = range(-8,8, length=101)
+b_range = range(-5,5, length=101)
 
 histogram(out[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
 plot!([q p], label= ["t" "N(0,1)"], lw=3)
@@ -105,6 +109,8 @@ xlabel!("x")
 ylabel!("P(x)")
 
 plot(1:N,out[:,1], label = "x")
+
+plot(autocor(out[:,1]))
 
 plot(out[:,1],out[:,2])
 
