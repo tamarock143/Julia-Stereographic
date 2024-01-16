@@ -13,7 +13,7 @@ nu = 200
 
 f = x -> -(nu+d)/2*log(nu + sum(x.^2))
 
-x0 = randn(d) .+ 100000
+x0 = randn(d) .+ 1e5
 
 length(x0) > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
 
@@ -91,30 +91,30 @@ savefig("NormalAdapt500.pdf")
 
 ### HMC Testing
 
-delta = 0.1
+delta = 3.02*d^(-1/4)
 L = 5
 M = I(d)
-N::BigInt = 1e5
+N::BigInt = 1e6
 
 @time out = HMC(f, gradlogf, x0, N, delta, L; M = M);
-
+out.a
 #Plot comparison against the true distribution
 p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
 b_range = range(-5,5, length=101)
 
-histogram(out[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
+histogram(out.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
 plot!([q p], label= ["t" "N(0,1)"], lw=3)
 xlabel!("x")
 ylabel!("P(x)")
 
-plot(1:N,out[:,1], label = "x")
+plot(1:N,out.x[:,1], label = "x")
 
-plot(autocor(out[:,1]))
+plot(autocor(out.x[:,1]))
 
-plot(out[:,1],out[:,2])
+plot(out.x[:,1],out.x[:,2])
 
-xnorms = sum(out.^2, dims=2)
+xnorms = sum(out.x .^2, dims=2)
 plot(1:N,sqrt.(xnorms), label = "||x||")
 
 

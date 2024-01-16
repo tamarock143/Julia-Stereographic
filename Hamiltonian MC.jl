@@ -32,6 +32,8 @@ HMC = function (logf, gradlogf, x0, N, delta, L; M = I(length(x0)))
     x = x0 #Position vector, initialised at x0
     p = zeros(d) #Velocity vector, will be reinitialised according to Normal(0,M) at each step
 
+    aout = 0 # Track acceptance rate
+    
     for n in 2:N
         #Print iteration number
         print("\rStep number: $n")
@@ -50,11 +52,12 @@ HMC = function (logf, gradlogf, x0, N, delta, L; M = I(length(x0)))
         if u < a #Accept proposal
             xout[n,:] = xprime
             x = xprime #Update position
+            aout += 1/(N-1)
         else #Reject proposal
             xout[n,:] = x
         end
     end
     println()
 
-    return (x = xout)
+    return (x = xout, a = aout)
 end
