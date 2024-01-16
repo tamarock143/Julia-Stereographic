@@ -27,10 +27,10 @@ T = 10
 delta = 0.1
 Tbrent = pi/50
 tol = 1e-6
-lambda = 0.2
+lambda = 1
 
 beta = 1.1
-burnin = 20
+burnin = 1000
 R = 1e6
 r = 1e-6
 
@@ -38,7 +38,7 @@ r = 1e-6
 sigma = sigma, mu = mu, burnin = burnin);
 
 FullSBPS = function ()
-    (zout,vout) = SBPSSimulator(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = Tbrent, tol = tol,
+    (zout,vout) = SBPSSimulator(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, tol = tol,
     sigma = sigma, mu = mu);
 
     n = floor(BigInt, T/delta)+1 #Total number of observations of the skeleton path
@@ -61,15 +61,15 @@ q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
 b_range = range(-5,5, length=101)
 
 histogram(out.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
-plot!(p, label= "N(0,1)", lw=3)
-#plot!(q, label= "t", lw=3)
+#plot!(p, label= "N(0,1)", lw=3)
+plot!(q, label= "t", lw=3)
 xlabel!("x")
 ylabel!("P(x)")
 
 plot(0:delta:T,out.x[:,1], label = "x")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
 
-map(x -> sum(x -> x^2, x), eachrow(out.mu))
+map(x -> sum(x -> x^2, x - mu), eachrow(out.mu))
 map(x -> sum(x -> x^2, eigen(x - sqrt(d)I(d)).values), out.sigma)
 
 plot(out.x[:,1],out.x[:,2])
@@ -94,7 +94,7 @@ savefig("NormalAdapt500.pdf")
 delta = 0.1
 L = 5
 M = I(d)
-N::BigInt = 1e6
+N::BigInt = 1e5
 
 @time out = HMC(f, gradlogf, x0, N, delta, L; M = M);
 
