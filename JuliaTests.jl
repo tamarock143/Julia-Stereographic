@@ -65,7 +65,7 @@ plot!(q, label= "t", lw=3)
 xlabel!("x")
 ylabel!("P(x)")
 
-plot(0:delta:T,.x[:,1], label = "x")
+plot(0:delta:T,out.x[:,1], label = "x")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
 
 map(x -> sum(x -> x^2, x - mu), eachrow(out.mu))
