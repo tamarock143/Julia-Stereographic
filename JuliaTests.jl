@@ -8,12 +8,12 @@ using StatsBase
 
 d = 200
 sigma = sqrt(d)I(d)
-mu = zeros(d)
+mu = zeros(d) .+1e5
 nu = 200
 
 f = x -> -(nu+d)/2*log(nu + sum(x.^2))
 
-x0 = randn(d) .+ 1e5
+x0 = randn(d) .+1e5
 
 length(x0) > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
 
@@ -23,19 +23,18 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 10
+T = 2500
 delta = 0.1
-Tbrent = pi/50
+Tbrent = pi/25
 tol = 1e-6
 lambda = 1
 
 beta = 1.1
-burnin = 1000
-R = 1e6
-r = 1e-6
+burnin = 5000
+R = 1e9
+r = 1e-9
 
-@time out = SBPSAdaptive(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = Tbrent, tol = tol,
-sigma = sigma, mu = mu, burnin = burnin);
+@time out = SBPSAdaptive(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = Tbrent, tol = tol, sigma = sigma, mu = mu, burnin = burnin);
 
 FullSBPS = function ()
     (zout,vout) = SBPSSimulator(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, tol = tol,
@@ -52,7 +51,7 @@ FullSBPS = function ()
     return (z = zout, v = vout, x = xout)
 end
 
-#@time out = FullSBPS();
+#@time out2 = FullSBPS();
 
 #Plot comparison against the true distribution
 #p(x) = 1/sqrt(2pi)*exp(-x^2/2)
@@ -66,7 +65,7 @@ plot!(q, label= "t", lw=3)
 xlabel!("x")
 ylabel!("P(x)")
 
-plot(0:delta:T,out.x[:,1], label = "x")
+plot(0:delta:T,out2.x[:,1], label = "x")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
 
 map(x -> sum(x -> x^2, x - mu), eachrow(out.mu))
@@ -76,7 +75,7 @@ plot(out.x[:,1],out.x[:,2])
 
 plot(autocor(out.x[:,1]))
 
-xnorms = sum(out.x.^2, dims=2)
+xnorms = sum(out2.x.^2, dims=2)
 plot(0:delta:T,sqrt.(xnorms), label = "||x||")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
 
