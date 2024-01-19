@@ -51,7 +51,7 @@ FullSBPS = function ()
     return (z = zout, v = vout, x = xout)
 end
 
-#@time out2 = FullSBPS();
+#@time out = FullSBPS();
 
 #Plot comparison against the true distribution
 #p(x) = 1/sqrt(2pi)*exp(-x^2/2)
@@ -65,7 +65,7 @@ plot!(q, label= "t", lw=3)
 xlabel!("x")
 ylabel!("P(x)")
 
-plot(0:delta:T,out2.x[:,1], label = "x")
+plot(0:delta:T,.x[:,1], label = "x")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
 
 map(x -> sum(x -> x^2, x - mu), eachrow(out.mu))
@@ -75,7 +75,7 @@ plot(out.x[:,1],out.x[:,2])
 
 plot(autocor(out.x[:,1]))
 
-xnorms = sum(out2.x.^2, dims=2)
+xnorms = sum(out.x.^2, dims=2)
 plot(0:delta:T,sqrt.(xnorms), label = "||x||")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
 
