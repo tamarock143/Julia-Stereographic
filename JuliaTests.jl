@@ -6,16 +6,16 @@ using Plots
 using SpecialFunctions
 using StatsBase
 
-d = 200
+d = 1
 sigma = sqrt(d)I(d)
-mu = zeros(d) .+1e5
-nu = 200
+mu = zeros(d)
+nu = 1
 
 f = x -> -(nu+d)/2*log(nu + sum(x.^2))
 
-x0 = randn(d) .+1e5
+d > 1 ? x0 = randn(d) : x0 = randn()
 
-length(x0) > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
+d > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
 
 #This is here to precalculate the gradient function
 gradlogf(x0)
@@ -23,9 +23,9 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 2500
+T = 10000
 delta = 0.1
-Tbrent = pi/25
+Tbrent = pi/50
 tol = 1e-6
 lambda = 1
 
@@ -57,7 +57,7 @@ end
 #p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 #q(x) = 1/sqrt(2pi*sigmaf)*exp(-x^2/2sigmaf)
 q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
-b_range = range(-5,5, length=101)
+b_range = range(-8,8, length=101)
 
 histogram(out.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
 #plot!(p, label= "N(0,1)", lw=3)
@@ -79,20 +79,30 @@ xnorms = sum(out.x.^2, dims=2)
 plot(0:delta:T,sqrt.(xnorms), label = "||x||")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
 
+a = 0
+b = 50
+norms_range = range(a,b, length = 101)
+histogram(xnorms/d, label="||x||", bins=norms_range, normalize=:pdf, color=:gray)
+p(x) = 1/beta(d/2,nu/2)*(d/nu)^(d/2)*x^(d/2 - 1)*(1+d/nu*x)^(-(d+nu)/2)
+plot!(norms_range, x -> p(x)/(beta_inc(d/2,nu/2,d*b/(d*b+nu))[1] -beta_inc(d/2,nu/2,d*a/(d*a+nu))[1]),
+    label = "F", lw = 3)
+
+beta_inc(d/2,nu/2,d*a/(d*a+nu))[2]
+
+
 plot(autocor(xnorms))
 
 plot(0:delta:T,out.z[:,end], label = "z_{d+1}")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
 
-savefig("NormalAdapt500.pdf")
-
+#savefig("NormalAdapt500.pdf")
 
 
 ### HMC Testing
 
-delta = 3.02*d^(-1/4)
+delta = 1.7*d^(-1/4)
 L = 5
-M = I(d)
+d > 1 ? M = I(d) : M = 1
 N::BigInt = 1e6
 
 @time out = HMC(f, gradlogf, x0, N, delta, L; M = M);
@@ -100,7 +110,7 @@ out.a
 #Plot comparison against the true distribution
 p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
-b_range = range(-5,5, length=101)
+b_range = range(-8,8, length=101)
 
 histogram(out.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
 plot!([q p], label= ["t" "N(0,1)"], lw=3)
@@ -116,6 +126,16 @@ plot(out.x[:,1],out.x[:,2])
 xnorms = sum(out.x .^2, dims=2)
 plot(1:N,sqrt.(xnorms), label = "||x||")
 
+
+a = 0
+b = 5
+norms_range = range(a,b, length = 101)
+histogram(xnorms/d, label="||x||", bins=norms_range, normalize=:pdf, color=:gray)
+p(x) = 1/beta(d/2,nu/2)*(d/nu)^(d/2)*x^(d/2 - 1)*(1+d/nu*x)^(-(d+nu)/2)
+plot!(norms_range, x -> p(x)/(beta_inc(d/2,nu/2,d*b/(d*b+nu))[1] -beta_inc(d/2,nu/2,d*a/(d*a+nu))[1]),
+ label = "F", lw = 3)
+
+beta_inc(d/2,nu/2,d*a/(d*a+nu))[2]
 
 ### Misc Tests
 

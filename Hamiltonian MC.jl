@@ -27,7 +27,7 @@ HMC = function (logf, gradlogf, x0, N, delta, L; M = I(length(x0)))
     Msqrt = sqrt(M) #Sqrt M preemptively
 
     xout = zeros(N,d) #Prepare output
-    xout[1,:] = x0
+    xout[1,:] .= x0
 
     x = x0 #Position vector, initialised at x0
     p = zeros(d) #Velocity vector, will be reinitialised according to Normal(0,M) at each step
@@ -39,7 +39,7 @@ HMC = function (logf, gradlogf, x0, N, delta, L; M = I(length(x0)))
         print("\rStep number: $n")
 
         #Initialise velocity
-        p = Msqrt*randn(d)
+        d > 1 ? p = Msqrt*randn(d) : p = Msqrt*randn()
 
         #Apply Leapfrog integrator to get proposals
         (xprime, pprime) = LeapFrog(gradlogf, x, p, delta, L; Minv = Minv)
@@ -50,11 +50,11 @@ HMC = function (logf, gradlogf, x0, N, delta, L; M = I(length(x0)))
         u = log(rand(Float64)) #Simulate from uniform to accept/reject
 
         if u < a #Accept proposal
-            xout[n,:] = xprime
+            xout[n,:] .= xprime
             x = xprime #Update position
             aout += 1/(N-1)
         else #Reject proposal
-            xout[n,:] = x
+            xout[n,:] .= x
         end
     end
     println()
