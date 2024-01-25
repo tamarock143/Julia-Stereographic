@@ -25,7 +25,7 @@ gradlogf(x0)
 
 T = 10000
 delta = 0.1
-Tbrent = pi/50
+Tbrent = pi/100
 tol = 1e-6
 lambda = 1
 
