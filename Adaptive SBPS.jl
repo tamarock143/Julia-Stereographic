@@ -2,7 +2,7 @@
 include("SBPS with Bounce.jl")
 
 SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/24, tol = 1e-6,
-    sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), burnin = 1e2)
+    sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), burnin = 1e2, adaptlength = burnin)
 
     d = length(x0) #The dimension
 
@@ -24,32 +24,34 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
     burnin <= 1 && (burnin = 1)
 
     #Set up adaptation times
-    #Note this is not a tight upper bound on number of adaptations
-    nadapt = ceil(Int64, ((beta+1)*(left-burnin)/burnin)^(1/(beta+1)))+1
-    times = zeros(nadapt)
-
     #Include initial burn-in period
-    times[1] = burnin
-
+    times = [burnin]
     i=1
+
+    #Variable tracking which power of 2 is used in length of the adaptative epoch
+    power = 0
 
     while sum(times) < left
         #For theoretical guarantees, we ensure increasing common divisor to lags
         #For practical reasons, ensure adaptation times are an integer number of skeleton steps
-        times[i+1] = burnin*ceil(1/delta)delta*2^findfirst(map(x -> 2^x, 0:nadapt) .>= i^beta)
+        
+        #Increment powers of 2 to be of order i^beta
+        power += findfirst(map(x -> 2^x, power:power+beta+1) .>= i^beta) -1
+
+        #Add on the next adaptive epoch
+        append!(times, adaptlength*ceil(1/delta)delta*2^power)
 
         #Iterate length of times
         i += 1
     end
 
-    #Shrink length of adaptive times vector
+    #Exact number of adaptive times
     nadapt = i
-    times = times[1:nadapt]
 
     #Prepare estimators for mu and sigma
     #m and s2 track sums we will need to iteratively update the estimators
-    m::Vector{Float64} = mu
-    s2::Matrix{Float64} = sigma
+    m::Vector{Float64} = x0
+    s2::Matrix{Float64} = x0*x0'
 
     #muest and sigmaest are the estimators
     muest = zeros(nadapt+1, d)
@@ -118,7 +120,7 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
         m += vec(sum(xpath, dims = 1))
 
         #Placeholder for mu update
-        mutemp = m/k
+        mutemp = m/(k-1)
 
         #Update sum for covariance estimator
         for x in eachrow(xpath)
@@ -129,26 +131,33 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
         rtemp = sum(mutemp.^2)
         rtemp > R^2 && (mutemp *= R/rtemp)
 
-        #Placeholder for sigma update
-        #We include the +r^2I(d) term to get lower bounds on the eigenvalues
-        sigmatemp = d*Symmetric(s2/k - mutemp*mutemp') + r^2*I(d)
-
-        #Increment which adaptive step we are at
         iadapt += 1
-
-        #Diagonalise the covariance estimator
-        (evalstemp,evecstemp) = eigen(sigmatemp)
-
-        #Truncate large eigenvalues
-        for i in 1:d
-            evalstemp[i] > R^2 && (evalstemp[i] = R^2)
-        end
 
         #Output mean estimator
         muest[iadapt,:] = mutemp
+
+        #Try statement included in case of NaNs or other matrix irregularities (such as near-0 eigenvalues)
+        try
+            #Placeholder for sigma update
+            sigmatemp = d*(k-1)/(k-2)*Symmetric(s2/(k-1) - mutemp*mutemp')
+            #Increment which adaptive step we are at
+
+            #Diagonalise the covariance estimator
+            (evalstemp,evecstemp) = eigen(sigmatemp)
+
+            #Truncate large eigenvalues
+            for i in 1:d
+                evalstemp[i] > R^2 && (evalstemp[i] = R^2)
+                evalstemp[i] < 0 && (evalstemp[i] = 0)
+            end
         
-        #Output sigma estimator, equal to sqrt of covariance estimator
-        sigmaest[iadapt] = evecstemp*Diagonal(sqrt.(evalstemp))*evecstemp'
+            #Output sigma estimator, equal to sqrt of covariance estimator
+            #We include the +r*I(d) term to get lower bounds on the eigenvalues
+            sigmaest[iadapt] = evecstemp*Diagonal(sqrt.(evalstemp))*evecstemp' + r*I(d)
+        catch
+            #If there was an error, just keep the previous estimate
+            sigmaest[iadapt] = sigmaest[iadapt-1]
+        end
     end
 
     return (x = xout, z = zout, v = vout, mu = muest, sigma = sigmaest, times = times)

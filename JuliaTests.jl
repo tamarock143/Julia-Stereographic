@@ -6,14 +6,14 @@ using Plots
 using SpecialFunctions
 using StatsBase
 
-d = 1
+d = 200
 sigma = sqrt(d)I(d)
-mu = zeros(d)
-nu = 1
+mu = zeros(d) .+ 1e4
+nu = 200
 
 f = x -> -(nu+d)/2*log(nu + sum(x.^2))
 
-d > 1 ? x0 = randn(d) : x0 = randn()
+d > 1 ? x0 = randn(d) .+ 1e4 : x0 = randn()
 
 d > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
 
@@ -23,18 +23,19 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 10000
+T = 1000
 delta = 0.1
 Tbrent = pi/100
 tol = 1e-6
 lambda = 1
 
 beta = 1.1
-burnin = 5000
+burnin = 100
+adaptlength = 20
 R = 1e9
-r = 1e-9
+r = 1e-6
 
-@time out = SBPSAdaptive(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = Tbrent, tol = tol, sigma = sigma, mu = mu, burnin = burnin);
+@time out = SBPSAdaptive(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, tol, sigma, mu, burnin, adaptlength);
 
 FullSBPS = function ()
     (zout,vout) = SBPSSimulator(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, tol = tol,
@@ -100,7 +101,7 @@ vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
 
 ### HMC Testing
 
-delta = 1.7*d^(-1/4)
+delta = 3.02*d^(-1/4)
 L = 5
 d > 1 ? M = I(d) : M = 1
 N::BigInt = 1e6
@@ -144,3 +145,15 @@ plot(log.(1 .+ sqrt.(d*eigen(cov(X)).values)), label = "iid")
 plot!(log.(1 .+ sqrt.(eigen(d*cov(out.x, corrected = false)).values)), label = "SBPS")
 plot!(log.(1 .+ eigen(out.sigma[end]).values), label = "SBPS Est")
 plot!(x -> log(1+sqrt(d)), label = "theoretical")
+
+
+
+A = randn(3,3)
+A = A'*A
+eigentemp = eigen(A)
+
+A2 = sqrt(A)
+
+A - eigentemp.vectors*Diagonal(eigentemp.values)*eigentemp.vectors'
+
+A2 - eigentemp.vectors*Diagonal(sqrt.(eigentemp.values))*eigentemp.vectors'
