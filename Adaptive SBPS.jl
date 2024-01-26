@@ -153,7 +153,7 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
         
             #Output sigma estimator, equal to sqrt of covariance estimator
             #We include the +r*I(d) term to get lower bounds on the eigenvalues
-            sigmaest[iadapt] = evecstemp*Diagonal(sqrt.(evalstemp))*evecstemp' + r*I(d)
+            sigmaest[iadapt] = Symmetric(evecstemp*Diagonal(sqrt.(evalstemp))*evecstemp') + r*I(d)
         catch
             #If there was an error, just keep the previous estimate
             sigmaest[iadapt] = sigmaest[iadapt-1]

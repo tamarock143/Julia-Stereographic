@@ -23,15 +23,15 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 1000
+T = 10000
 delta = 0.1
 Tbrent = pi/100
 tol = 1e-6
 lambda = 1
 
-beta = 1.1
-burnin = 100
-adaptlength = 20
+beta = 0.6
+burnin = 500
+adaptlength = 100
 R = 1e9
 r = 1e-6
 
