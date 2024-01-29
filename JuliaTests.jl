@@ -96,7 +96,7 @@ plot(autocor(xnorms))
 plot(0:delta:T,out.z[:,end], label = "z_{d+1}")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
 
-#savefig("NormalAdapt500.pdf")
+savefig("tAdaptationsLatitude.pdf")
 
 
 ### HMC Testing
