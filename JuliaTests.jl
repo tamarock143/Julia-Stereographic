@@ -80,7 +80,7 @@ xnorms = sum(out.x.^2, dims=2)
 plot(0:delta:T,sqrt.(xnorms), label = "||x||")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
 
-a = 0
+a = 0 
 b = 50
 norms_range = range(a,b, length = 101)
 histogram(xnorms/d, label="||x||", bins=norms_range, normalize=:pdf, color=:gray)
