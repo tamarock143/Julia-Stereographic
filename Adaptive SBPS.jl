@@ -24,14 +24,17 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
     burnin <= 1 && (burnin = 1)
 
     #Set up adaptation times
-    #Include initial burn-in period
-    times = [burnin]
+    #Include initial burn-in period, ensuring it is a multiple of the skelton path length
+    times = [burnin*ceil(1/delta)delta]
     i=1
 
     #Variable tracking which power of 2 is used in length of the adaptative epoch
     power = 0
 
-    while sum(times) < left
+    #Tracker for whether we have enough adaptations to fill the time
+    timescheck = left - times[1]
+
+    while timescheck > 0
         #For theoretical guarantees, we ensure increasing common divisor to lags
         #For practical reasons, ensure adaptation times are an integer number of skeleton steps
         
@@ -40,6 +43,9 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
 
         #Add on the next adaptive epoch
         append!(times, adaptlength*ceil(1/delta)delta*2^power)
+
+        #Remove this epoch's length
+        timescheck -= times[end]
 
         #Iterate length of times
         i += 1
@@ -50,8 +56,10 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
 
     #Prepare estimators for mu and sigma
     #m and s2 track sums we will need to iteratively update the estimators
-    m::Vector{Float64} = x0
-    s2::Matrix{Float64} = x0*x0'
+    m::Vector{Vector{Float64}} = fill(zeros(d), nadapt)
+    m[1] = x0
+    s2::Vector{Matrix{Float64}} = fill(zeros(d,d), nadapt)
+    s2[1] = x0*x0'
 
     #muest and sigmaest are the estimators
     muest = zeros(nadapt+1, d)
@@ -117,30 +125,34 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
         k += pathlength -1
 
         #Update column sums
-        m += vec(sum(xpath, dims = 1))
+        m[iadapt] += vec(sum(xpath, dims = 1))
+
+        #We will "forget" the first half of the epochs
+        #Calculate how many terms are used for the estimators
+        nlearn = sum(times[ceil(Int64, iadapt/4):iadapt])/delta
+        
+        #If including first loop, we have an extra point (the initial point)
+        iadapt <= 4 && (nlearn += 1)
 
         #Placeholder for mu update
-        mutemp = m/(k-1)
+        mutemp = sum(m[ceil(Int64, iadapt/4):iadapt])/nlearn
 
         #Update sum for covariance estimator
         for x in eachrow(xpath)
-            s2 += x*x'
+            s2[iadapt] += x*x'
         end
 
         #Reduce norm of mean estimate if necessary
         rtemp = sum(mutemp.^2)
         rtemp > R^2 && (mutemp *= R/rtemp)
 
-        iadapt += 1
-
         #Output mean estimator
-        muest[iadapt,:] = mutemp
+        muest[iadapt+1,:] = mutemp
 
         #Try statement included in case of NaNs or other matrix irregularities (such as near-0 eigenvalues)
         try
             #Placeholder for sigma update
-            sigmatemp = d*(k-1)/(k-2)*Symmetric(s2/(k-1) - mutemp*mutemp')
-            #Increment which adaptive step we are at
+            sigmatemp = d*nlearn/(nlearn-1)*Symmetric(sum(s2[ceil(Int64, iadapt/4):iadapt])/nlearn - mutemp*mutemp')
 
             #Diagonalise the covariance estimator
             (evalstemp,evecstemp) = eigen(sigmatemp)
@@ -153,11 +165,14 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
         
             #Output sigma estimator, equal to sqrt of covariance estimator
             #We include the +r*I(d) term to get lower bounds on the eigenvalues
-            sigmaest[iadapt] = Symmetric(evecstemp*Diagonal(sqrt.(evalstemp))*evecstemp') + r*I(d)
+            sigmaest[iadapt+1] = Symmetric(evecstemp*Diagonal(sqrt.(evalstemp))*evecstemp') + r*I(d)
         catch
             #If there was an error, just keep the previous estimate
-            sigmaest[iadapt] = sigmaest[iadapt-1]
+            sigmaest[iadapt+1] = sigmaest[iadapt]
         end
+        
+        #Increment number of adaptations
+        iadapt += 1
     end
 
     return (x = xout, z = zout, v = vout, mu = muest, sigma = sigmaest, times = times)
