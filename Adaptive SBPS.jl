@@ -42,7 +42,7 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
         power += findfirst(map(x -> 2^x, power:power+beta+1) .>= i^beta) -1
 
         #Add on the next adaptive epoch
-        append!(times, adaptlength*ceil(1/delta)delta*2^power)
+        append!(times, min(adaptlength*ceil(1/delta)delta*2^power, timescheck))
 
         #Remove this epoch's length
         timescheck -= times[end]
