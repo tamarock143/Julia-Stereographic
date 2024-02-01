@@ -5,7 +5,7 @@ using Random
 
 #We simulate an SBPS path targeting the disribtuion f. It requires x -> ∇log(f(x))
 #This requires bounce events and refreshment events
-SBPSSimulator = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = pi/24, tol = 1e-6,
+SBPSSimulator = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1, Epsbrent = 0.01, tol = 1e-6,
         sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)))
     
     z = SPinv(x0; sigma = sigma, mu = mu, isinv = false) #Map to the sphere
@@ -53,14 +53,15 @@ SBPSSimulator = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = p
         taubounce = 0
 
         #Tracks how many chunks of Brent's method we have gone through
-        l = 0
+        Bmin = 0
+        Bmax = Tbrent*(1 + Epsbrent - z[end]^2)
         #Indictor of whether we are still looking for a bounce
         nobounce = true
 
         while nobounce && taubounce <= min(left,tauref)
             #Find upper bound M on the bounce rate for current chunk
             M = -Brent(s -> bouncerate(s,z,v; sigma = sigma, mu = mu)[1],
-                     l*Tbrent, (l+1)Tbrent, tol)[2]
+                     Bmin, Bmax, tol)[2]
 
             #Is there a positive chance of a bounce?
             if M > 0
@@ -69,8 +70,8 @@ SBPSSimulator = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = p
                     #Simulate next possible bounce time according to Exp(M)
                     taubounce += randexp(Float64)/M
 
-                    #Did the event happen before the end of the interval?
-                    taubounce > (l+1)Tbrent && (taubounce = (l+1)Tbrent; break)
+                    #Did the event happen before the end of the interval or another event?
+                    taubounce > min(Bmax,tauref,left) && (taubounce = Bmax; break)
 
                     #Did a bounce happen, or do we reject this event?
                     mybounce = bouncerate(taubounce,z,v; sigma, mu) #Rate and gradient at bounce time
@@ -83,10 +84,12 @@ SBPSSimulator = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = p
                 end
             else
                 #If negative rate, move to next interval
-                taubounce = (l+1)Tbrent
+                taubounce = Bmax
             end
 
-            l += 1 #Increment number of Brent steps so far
+            #Update Brent interval
+            Bmin = Bmax
+            Bmax += Tbrent*(1 + Epsbrent - (z[end]*sin(Bmax) + v[end]*cos(Bmax))^2)
         end
 
         #Time until next event, or need new upper bound
