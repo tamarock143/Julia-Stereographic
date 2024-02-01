@@ -6,14 +6,14 @@ using Plots
 using SpecialFunctions
 using StatsBase
 
-d = 200
+d = 3
 sigma = sqrt(d)I(d)
-mu = zeros(d) .+ 1e4
-nu = 200
+mu = zeros(d) .+ 1e6
+nu = 3
 
 f = x -> -(nu+d)/2*log(nu + sum(x.^2))
 
-d > 1 ? x0 = randn(d) .+ 1e4 : x0 = randn()
+d > 1 ? x0 = randn(d) .+ 1e6 : x0 = randn()
 
 d > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
 
@@ -23,15 +23,15 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 10000
+T = 1000
 delta = 0.1
-Tbrent = pi/100
+Tbrent = pi/200
 tol = 1e-6
 lambda = 1
 
-beta = 0.6
-burnin = 500
-adaptlength = 100
+beta = 1.1
+burnin = 50
+adaptlength = 50
 R = 1e9
 r = 1e-6
 
@@ -104,7 +104,7 @@ savefig("tAdaptationsLatitude.pdf")
 delta = 3.02*d^(-1/4)
 L = 5
 d > 1 ? M = I(d) : M = 1
-N::BigInt = 1e6
+N::Int64 = 1e9
 
 @time out = HMC(f, gradlogf, x0, N, delta, L; M = M);
 out.a
@@ -118,7 +118,7 @@ plot!([q p], label= ["t" "N(0,1)"], lw=3)
 xlabel!("x")
 ylabel!("P(x)")
 
-plot(1:N,out.x[:,1], label = "x")
+plot(out.x[collect(Int64,1:1e3:1e9),1], label = "x")
 
 plot(autocor(out.x[:,1]))
 
@@ -126,7 +126,7 @@ plot(out.x[:,1],out.x[:,2])
 
 xnorms = sum(out.x .^2, dims=2)
 plot(1:N,sqrt.(xnorms), label = "||x||")
-
+xnorms[end]
 
 a = 0
 b = 5
