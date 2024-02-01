@@ -1,7 +1,7 @@
 #Import SBPS Simulator
 include("SBPS with Bounce.jl")
 
-SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/24, tol = 1e-6,
+SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, Epsbrent = 0.01, tol = 1e-6,
     sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), burnin = 1e2, adaptlength = burnin)
 
     d = length(x0) #The dimension
@@ -80,7 +80,7 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = pi/
         
         #Run the process with the given parameters
         @time (zpath,vpath) = SBPSSimulator(gradlogf, xout[k-1,:], lambda, min(t,left), delta; 
-        w, Tbrent, tol, sigma = sigmaest[iadapt], mu = muest[iadapt,:])
+        w, Tbrent, Epsbrent, tol, sigma = sigmaest[iadapt], mu = muest[iadapt,:])
 
         #Record final w value
         w = vpath[end,1:d] + vpath[end,d+1]*zpath[end,1:d]/(1 - zpath[end,d+1])

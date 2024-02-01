@@ -23,9 +23,10 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 1000
+T = 100
 delta = 0.1
 Tbrent = pi/200
+Epsbrent = 0.01
 tol = 1e-6
 lambda = 1
 
@@ -35,10 +36,10 @@ adaptlength = 50
 R = 1e9
 r = 1e-6
 
-@time out = SBPSAdaptive(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, tol, sigma, mu, burnin, adaptlength);
+@time out = SBPSAdaptive(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Epsbrent, tol, sigma, mu, burnin, adaptlength);
 
 FullSBPS = function ()
-    (zout,vout) = SBPSSimulator(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, tol = tol,
+    (zout,vout) = SBPSSimulator(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, Epsbrent = Epsbrent, tol = tol,
     sigma = sigma, mu = mu);
 
     n = floor(BigInt, T/delta)+1 #Total number of observations of the skeleton path
