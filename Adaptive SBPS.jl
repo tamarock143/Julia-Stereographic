@@ -129,13 +129,13 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
 
         #We will "forget" the first half of the epochs
         #Calculate how many terms are used for the estimators
-        nlearn = sum(times[ceil(Int64, iadapt/4):iadapt])/delta
+        nlearn = sum(times[ceil(Int64, iadapt/3):iadapt])/delta
         
         #If including first loop, we have an extra point (the initial point)
-        iadapt <= 4 && (nlearn += 1)
+        iadapt <= 3 && (nlearn += 1)
 
         #Placeholder for mu update
-        mutemp = sum(m[ceil(Int64, iadapt/4):iadapt])/nlearn
+        mutemp = sum(m[ceil(Int64, iadapt/3):iadapt])/nlearn
 
         #Update sum for covariance estimator
         for x in eachrow(xpath)
@@ -152,7 +152,7 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
         #Try statement included in case of NaNs or other matrix irregularities (such as near-0 eigenvalues)
         try
             #Placeholder for sigma update
-            sigmatemp = d*nlearn/(nlearn-1)*Symmetric(sum(s2[ceil(Int64, iadapt/4):iadapt])/nlearn - mutemp*mutemp')
+            sigmatemp = d*nlearn/(nlearn-1)*Symmetric(sum(s2[ceil(Int64, iadapt/3):iadapt])/nlearn - mutemp*mutemp')
 
             #Diagonalise the covariance estimator
             (evalstemp,evecstemp) = eigen(sigmatemp)

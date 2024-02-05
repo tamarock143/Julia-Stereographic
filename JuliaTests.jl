@@ -6,14 +6,14 @@ using Plots
 using SpecialFunctions
 using StatsBase
 
-d = 3
+d = 1
 sigma = sqrt(d)I(d)
-mu = zeros(d) .+ 1e6
-nu = 3
+mu = zeros(d)
+nu = 1
 
 f = x -> -(nu+d)/2*log(nu + sum(x.^2))
 
-d > 1 ? x0 = randn(d) .+ 1e6 : x0 = randn()
+d > 1 ? x0 = randn(d) : x0 = randn()
 
 d > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
 
@@ -23,21 +23,21 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 100
-delta = 0.1
+T = 10000
+delta = 0.01
 Tbrent = pi/200
 Epsbrent = 0.01
 tol = 1e-6
 lambda = 1
 
 beta = 1.1
-burnin = 50
-adaptlength = 50
+burnin = 500
+adaptlength = 100
 R = 1e9
 r = 1e-6
 
 @time out = SBPSAdaptive(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Epsbrent, tol, sigma, mu, burnin, adaptlength);
-
+ 
 FullSBPS = function ()
     (zout,vout) = SBPSSimulator(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, Epsbrent = Epsbrent, tol = tol,
     sigma = sigma, mu = mu);
@@ -78,7 +78,7 @@ plot(out.x[:,1],out.x[:,2])
 plot(autocor(out.x[:,1]))
 
 xnorms = sum(out.x.^2, dims=2)
-plot(0:delta:T,sqrt.(xnorms), label = "||x||")
+plot(sqrt.(xnorms), label = "||x||")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
 
 a = 0 
@@ -102,32 +102,31 @@ savefig("tAdaptationsLatitude.pdf")
 
 ### HMC Testing
 
-delta = 3.02*d^(-1/4)
+delta = 1.4d^(-1/4)
 L = 5
 d > 1 ? M = I(d) : M = 1
-N::Int64 = 1e9
+N::Int64 = 1e7
 
-@time out = HMC(f, gradlogf, x0, N, delta, L; M = M);
-out.a
+@time hmcout = HMC(f, gradlogf, x0, N, delta, L; M = M);
+hmcout.a
 #Plot comparison against the true distribution
 p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
 b_range = range(-8,8, length=101)
 
-histogram(out.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
+histogram(hmcout.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
 plot!([q p], label= ["t" "N(0,1)"], lw=3)
 xlabel!("x")
 ylabel!("P(x)")
 
-plot(out.x[collect(Int64,1:1e3:1e9),1], label = "x")
+plot(hmcout.x[collect(Int64,1:1e3:1e9),1], label = "x")
 
-plot(autocor(out.x[:,1]))
+plot(autocor(hmcout.x[:,1]))
 
-plot(out.x[:,1],out.x[:,2])
+plot(hmcout.x[:,1],hmcout.x[:,2])
 
-xnorms = sum(out.x .^2, dims=2)
-plot(1:N,sqrt.(xnorms), label = "||x||")
-xnorms[end]
+hmcxnorms = sum(hmcout.x .^2, dims=2)
+plot(sqrt.(hmcxnorms[1:1000000]), label = "||x||")
 
 a = 0
 b = 5
