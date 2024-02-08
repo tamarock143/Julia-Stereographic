@@ -96,7 +96,7 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
         vout[adaptstarts[iadapt]:adaptstarts[iadapt+1]-1,:] = vpath[1:end-1,:]
 
         #Input final values once needed
-        left == 0 && (zout[end,:] = zpath[end]; vout[end,:] = vpath[end,:])
+        left == 0 && (zout[end,:] = zpath[end,:]; vout[end,:] = vpath[end,:])
 
         #Set up x projected path
         xpath = zeros(Int64(t/delta),d)

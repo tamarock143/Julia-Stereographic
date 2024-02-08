@@ -139,17 +139,18 @@ end
 
 #Newton's Method for root finding (1 dimensional function)
 Newton = function (f, gradf, x, tol)
-    #Calculate gradf(x)
-    gradx = gradf(x)
+    #Calculate f(x)
+    fx = f(x)
 
-    while abs(gradx) > tol
-        fx = f(x)
+    while abs(fx) > tol
+        #Calculate gradient
+        gradx = gradf(x)
 
         #Take one Newton's method step
         x -= fx/gradx
 
-        #Update gradient
-        gradx = gradf(x)
+        #Update function value
+        fx = f(x)
     end
 
     #Return root
