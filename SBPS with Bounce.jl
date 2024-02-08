@@ -1,6 +1,6 @@
 #Import Stereographic Projection stuff, Brent stuff, and the Random library
 include("Stereographic Projection.jl")
-include("Brent's Method.jl")
+include("Optimisation.jl")
 using Random
 
 #We simulate an SBPS path targeting the disribtuion f. It requires x -> ∇log(f(x))
