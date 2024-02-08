@@ -156,3 +156,16 @@ Newton = function (f, gradf, x, tol)
     #Return root
     return(x)
 end
+
+#Robbins-Monro algorithm for root finding (1 dimensional function)
+#We consider a function F(theta) = sum(f.(x,theta))
+RobMonro = function (f, x, theta, step, N; lower = 0, upper = 1)
+    for i in 1:N
+        theta -= step/i*f(rand(x),theta)
+
+        theta < lower && (theta = lower)
+        theta > upper && (theta = upper)
+    end
+
+    return(theta)
+end

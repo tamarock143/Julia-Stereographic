@@ -7,8 +7,8 @@ using SpecialFunctions
 using StatsBase
 
 d = 10
-sigma = 0.3*sqrt(d)I(d)
-mu = zeros(d) .+ 3
+sigma = sqrt(d)I(d)
+mu = zeros(d)
 nu = 10
 
 f = x -> -(nu+d)/2*log(nu + sum(x.^2))
@@ -31,14 +31,14 @@ tol = 1e-6
 lambda = 1
 
 beta = 0.6
-burnin = 100
+burnin = 1000
 adaptlength = 20
 R = 1e9
 r = 1e-6
 
 @time out = SBPSAdaptive(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Epsbrent, tol, sigma, mu, burnin, adaptlength);
  
-FullSBPS = function ()
+FullSBPS = function()
     (zout,vout) = SBPSSimulator(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, Epsbrent = Epsbrent, tol = tol,
     sigma = sigma, mu = mu);
 
@@ -90,7 +90,6 @@ plot!(norms_range, x -> p(x)/(beta_inc(d/2,nu/2,d*b/(d*b+nu))[1] -beta_inc(d/2,n
     label = "F", lw = 3)
 
 beta_inc(d/2,nu/2,d*a/(d*a+nu))[2]
-
 
 plot(autocor(xnorms))
 

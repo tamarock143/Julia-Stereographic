@@ -145,18 +145,22 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
             end
 
             #We now scale the covariance matrix so that the latitude is centered
-            #This requires applying Newton's method to the following function
-            latf(c) = sum(x -> 1/(c*x+1), xnorms) - nlearn/2
-            latgrad(c) = -sum(x -> c/(c*x + 1)^2, xnorms)
+            #If the estimators are correct, should get c=d
+            #This requires applying the Robbins-Monro algorithm
 
-            c = Newton(latf, latgrad, 1/d, tol)
-            sigmatemp *= sqrt(c)
+            latf(x,theta) = (x-theta)/(x+theta) #Latitude of a given z at position ||x||^2/theta
+
+            c = RobMonro(latf, xnorms, d, 1, 1e6; lower = 1, upper = d^2)
+            
+            #Scale the covariance
+            sigmatemp *= c
 
             #Diagonalise the covariance estimator
             (evalstemp,evecstemp) = eigen(sigmatemp)
 
             #Truncate large eigenvalues
             for i in 1:d
+                evalstemp > R^2 && (evalstemp[i] = R^2)
                 evalstemp[i] < 0 && (evalstemp[i] = 0)
             end
 
