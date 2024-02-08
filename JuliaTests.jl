@@ -6,14 +6,14 @@ using Plots
 using SpecialFunctions
 using StatsBase
 
-d = 3
-sigma = sqrt(d)I(d)
-mu = zeros(d) .+ 1e7
-nu = 2.6
+d = 10
+sigma = 0.3*sqrt(d)I(d)
+mu = zeros(d) .+ 3
+nu = 10
 
 f = x -> -(nu+d)/2*log(nu + sum(x.^2))
 
-d > 1 ? x0 = randn(d) .+ 1e7 : x0 = randn() +1e7
+d > 1 ? x0 = randn(d) .+ 3 : x0 = randn() +1e7
 
 d > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
 

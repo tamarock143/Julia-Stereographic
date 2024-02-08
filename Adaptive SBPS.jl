@@ -20,7 +20,6 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
     xout[1,:] = x0
     
     left::Float64 = (n-1)delta #Track remaining amount of time left until last observation
-    k = 2 #Track the next row to be added to output
     
     #Ensure burn-in is not close to 0 for ease of future calculations
     burnin <= 1 && (burnin = 1)
@@ -56,12 +55,13 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
     #Exact number of adaptive times
     nadapt = i
 
+    #Indexes of starts of each adaptation in xout. Will be required for moving paths into output
+    adaptstarts = append!([1], cumsum(times)[1:end]/delta .+ 1)
+
     #Prepare estimators for mu and sigma
     #m and s2 track sums we will need to iteratively update the estimators
     m::Vector{Vector{Float64}} = fill(zeros(d), nadapt)
-    m[1] = x0
     s2::Vector{Matrix{Float64}} = fill(zeros(d,d), nadapt)
-    s2[1] = x0*x0'
 
     #muest and sigmaest are the estimators
     muest = zeros(nadapt+1, d)
@@ -77,11 +77,10 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
         #If we've run the full time, end the process
         left == 0 && break
 
-        println("Adaptation number: ", iadapt, "/", nadapt)
-        println("Length of run: ", min(t,left))
+        println("Adaptation number: ", iadapt, "/", nadapt, "\n")
         
         #Run the process with the given parameters
-        @time (zpath,vpath) = SBPSSimulator(gradlogf, xout[k-1,:], lambda, min(t,left), delta; 
+        @time (zpath,vpath) = SBPSSimulator(gradlogf, xout[adaptstarts[iadapt],:], lambda, min(t,left), delta; 
         w, Tbrent, Epsbrent, tol, sigma = sigmaest[iadapt], mu = muest[iadapt,:])
 
         #Record final w value
@@ -90,51 +89,32 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
 
         #Update how much time is left
         left >= t ? left -= t : left = 0
-        
-        #Number of rows to add (note that the start of the current path is the end of the previous one for z)
-        pathlength = size(zpath)[1]
 
-        #Need small change based on whether we have put in the first entries for (zout,vout)
-        if k >2
-            #Append this piece to the output
-            zout[k:k+pathlength-2,:] = zpath[2:end,:]
+        #Append this piece to the output
+        zout[adaptstarts[iadapt]:adaptstarts[iadapt+1]-1,:] = zpath[1:end-1,:]
 
-            #Note we will have difficulty with storing the velocities at adaptation times
-            vout[k-1:k+pathlength-3,:] = vpath[1:end-1,:]
+        vout[adaptstarts[iadapt]:adaptstarts[iadapt+1]-1,:] = vpath[1:end-1,:]
 
-            #Input final velocity value if needed
-            left == 0 && (vout[end,:] = vpath[end,:])
-        else
-            #Append this piece to the output
-            zout[1:pathlength,:] = zpath
-
-            #Note we will have difficulty with storing the velocities at adaptation times
-            vout[1:pathlength-1,:] = vpath[1:end-1,:]
-        end
+        #Input final values once needed
+        left == 0 && (zout[end,:] = zpath[end]; vout[end,:] = vpath[end,:])
 
         #Set up x projected path
-        xpath = zeros(pathlength-1,d)
+        xpath = zeros(Int64(t/delta),d)
 
         #Project each entry back to R^d
-        for i in 2:pathlength
+        for i in 2:Int64(t/delta)+1
             xpath[i-1,:] = SP(zpath[i,:]; sigma = sigmaest[iadapt], mu = muest[iadapt])
         end
 
         #Record this section of the x path
-        xout[k:k+pathlength-2,:] = xpath
-
-        #Increment next row to add
-        k += pathlength -1
+        xout[adaptstarts[iadapt]+1:adaptstarts[iadapt+1],:] = xpath
 
         #Update column sums
-        m[iadapt] += vec(sum(xpath, dims = 1))
+        m[iadapt] = vec(sum(xpath, dims = 1))
 
         #We will "forget" the first half of the epochs
         #Calculate how many terms are used for the estimators
         nlearn = sum(times[ceil(Int64, iadapt/3):iadapt])/delta
-        
-        #If including first loop, we have an extra point (the initial point)
-        iadapt <= 3 && (nlearn += 1)
 
         #Placeholder for mu update
         mutemp = sum(m[ceil(Int64, iadapt/3):iadapt])/nlearn
@@ -154,17 +134,32 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
         #Try statement included in case of NaNs or other matrix irregularities (such as near-0 eigenvalues)
         try
             #Placeholder for sigma update
-            sigmatemp = d*nlearn/(nlearn-1)*Symmetric(sum(s2[ceil(Int64, iadapt/3):iadapt])/nlearn - mutemp*mutemp')
+            sigmatemp = nlearn/(nlearn-1)*Symmetric(sum(s2[ceil(Int64, iadapt/3):iadapt])/nlearn - mutemp*mutemp')
+
+            invtemp = inv(sqrt(sigmatemp))
+
+            #Create set of norms for centered and scaled output
+            xnorms = Vector{Float64}()
+            for x in eachrow(xout[adaptstarts[ceil(Int64, iadapt/3)]+1:adaptstarts[iadapt+1],:])
+                append!(xnorms, sum(x -> x^2, invtemp*(x - mutemp)))
+            end
+
+            #We now scale the covariance matrix so that the latitude is centered
+            #This requires applying Newton's method to the following function
+            latf(c) = sum(x -> 1/(c*x+1), xnorms) - nlearn/2
+            latgrad(c) = -sum(x -> c/(c*x + 1)^2, xnorms)
+
+            c = Newton(latf, latgrad, 1/d, tol)
+            sigmatemp *= sqrt(c)
 
             #Diagonalise the covariance estimator
             (evalstemp,evecstemp) = eigen(sigmatemp)
 
             #Truncate large eigenvalues
             for i in 1:d
-                evalstemp[i] > R^2 && (evalstemp[i] = R^2)
                 evalstemp[i] < 0 && (evalstemp[i] = 0)
             end
-        
+
             #Output sigma estimator, equal to sqrt of covariance estimator
             #We include the +r*I(d) term to get lower bounds on the eigenvalues
             sigmaest[iadapt+1] = Symmetric(evecstemp*Diagonal(sqrt.(evalstemp))*evecstemp') + r*I(d)
