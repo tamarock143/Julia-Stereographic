@@ -72,6 +72,9 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
 
     iadapt = 1 #Track which adaptive estimate we are currently using
 
+    #Return Robbins-Monro scaling constants
+    cout = zeros(nadapt)
+
     #For each adaptive period, run the SBPS simulation with fixed parameter values
     for t in times
         #If we've run the full time, end the process
@@ -151,9 +154,11 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
             latf(x,theta) = (x-theta)/(x+theta) #Latitude of a given z at position ||x||^2/theta
 
             c = RobMonro(latf, xnorms, d, 1, 1e6; lower = 1, upper = d^2)
+            println(c/d)
             
             #Scale the covariance
             sigmatemp *= c
+            cout[iadapt] = c
 
             #Diagonalise the covariance estimator
             (evalstemp,evecstemp) = eigen(sigmatemp)
@@ -176,5 +181,5 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
         iadapt += 1
     end
 
-    return (x = xout, z = zout, v = vout, mu = muest, sigma = sigmaest, times = times)
+    return (x = xout, z = zout, v = vout, mu = muest, sigma = sigmaest, times = times, c = cout)
 end

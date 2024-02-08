@@ -8,12 +8,12 @@ using StatsBase
 
 d = 10
 sigma = sqrt(d)I(d)
-mu = zeros(d)
+mu = zeros(d) .+ 1e2
 nu = 10
 
-f = x -> -(nu+d)/2*log(nu + sum(x.^2))
+f = x -> -sum(x.^2)/2
 
-d > 1 ? x0 = randn(d) .+ 3 : x0 = randn() +1e7
+d > 1 ? x0 = randn(d) .+ 1e2 : x0 = randn()
 
 d > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
 
@@ -23,21 +23,21 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 1000
+T = 10000
 delta = 0.2
 Tbrent = pi/20
 Epsbrent = 0.1
 tol = 1e-6
 lambda = 1
 
-beta = 0.6
-burnin = 1000
-adaptlength = 20
+beta = 1.1
+burnin = 100
+adaptlength = 100
 R = 1e9
 r = 1e-6
 
 @time out = SBPSAdaptive(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Epsbrent, tol, sigma, mu, burnin, adaptlength);
- 
+
 FullSBPS = function()
     (zout,vout) = SBPSSimulator(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, Epsbrent = Epsbrent, tol = tol,
     sigma = sigma, mu = mu);
@@ -56,14 +56,14 @@ end
 #@time out = FullSBPS();
 
 #Plot comparison against the true distribution
-#p(x) = 1/sqrt(2pi)*exp(-x^2/2)
+p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 #q(x) = 1/sqrt(2pi*sigmaf)*exp(-x^2/2sigmaf)
-q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
+#q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
 b_range = range(-8,8, length=101)
 
 histogram(out.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
-#plot!(p, label= "N(0,1)", lw=3)
-plot!(q, label= "t", lw=3)
+plot!(p, label= "N(0,1)", lw=3)
+#plot!(q, label= "t", lw=3)
 xlabel!("x")
 ylabel!("P(x)")
 

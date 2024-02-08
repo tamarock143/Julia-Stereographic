@@ -137,26 +137,6 @@ Brent = function (f,a,b,tol)
 end
 
 
-#Newton's Method for root finding (1 dimensional function)
-Newton = function (f, gradf, x, tol)
-    #Calculate f(x)
-    fx = f(x)
-
-    while abs(fx) > tol
-        #Calculate gradient
-        gradx = gradf(x)
-
-        #Take one Newton's method step
-        x -= fx/gradx
-
-        #Update function value
-        fx = f(x)
-    end
-
-    #Return root
-    return(x)
-end
-
 #Robbins-Monro algorithm for root finding (1 dimensional function)
 #We consider a function F(theta) = sum(f.(x,theta))
 RobMonro = function (f, x, theta, step, N; lower = 0, upper = 1)
