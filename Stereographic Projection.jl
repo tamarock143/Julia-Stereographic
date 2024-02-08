@@ -9,7 +9,7 @@ SP = function (z; sigma = sqrt(length(z)-1)I(length(z)-1), mu = zeros(length(z)-
     abs(sum(z.^2) -1) >= 1e-12 && error("norm(z) != 1")
 
     #Warning if z == North Pole
-    z[end] == 1 && (println("Warning: x = Inf"); return Inf*ones(length(z)-1))
+    #z[end] - 1 == 0 && (println("Warning: x = Inf"); return Inf*ones(length(z)-1))
 
     sigma*z[1:end-1]/(1- z[end]) .+ mu
 end

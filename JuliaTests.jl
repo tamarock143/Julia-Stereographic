@@ -6,14 +6,14 @@ using Plots
 using SpecialFunctions
 using StatsBase
 
-d = 200
+d = 3
 sigma = sqrt(d)I(d)
 mu = zeros(d) .+ 1e7
-nu = 200
+nu = 2.6
 
 f = x -> -(nu+d)/2*log(nu + sum(x.^2))
 
-d > 1 ? x0 = randn(d) .+ 1e7 : x0 = randn()
+d > 1 ? x0 = randn(d) .+ 1e7 : x0 = randn() +1e7
 
 d > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
 
@@ -23,16 +23,16 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 100000
+T = 1000
 delta = 0.2
-Tbrent = pi/200
-Epsbrent = 0.01
+Tbrent = pi/20
+Epsbrent = 0.1
 tol = 1e-6
 lambda = 1
 
 beta = 0.6
-burnin = 1000
-adaptlength = 200
+burnin = 100
+adaptlength = 20
 R = 1e9
 r = 1e-6
 

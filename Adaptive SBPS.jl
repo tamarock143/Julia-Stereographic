@@ -6,6 +6,8 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
 
     d = length(x0) #The dimension
 
+    d == 1 && (x0 = fill(x0, 1))
+
     n = floor(BigInt, T/delta)+1 #Total number of observations of the skeleton path
 
     w = missing #Initialize w
@@ -15,7 +17,7 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
     vout = zeros(n,d+1)
     xout = zeros(n,d)
 
-    xout[1,:] .= x0
+    xout[1,:] = x0
     
     left::Float64 = (n-1)delta #Track remaining amount of time left until last observation
     k = 2 #Track the next row to be added to output
