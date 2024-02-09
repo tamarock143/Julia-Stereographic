@@ -165,7 +165,7 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
 
             #Truncate large eigenvalues
             for i in 1:d
-                evalstemp > R^2 && (evalstemp[i] = R^2)
+                evalstemp[i] > R^2 && (evalstemp[i] = R^2)
                 evalstemp[i] < 0 && (evalstemp[i] = 0)
             end
 
