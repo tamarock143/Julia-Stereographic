@@ -135,7 +135,7 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
         muest[iadapt+1,:] = mutemp
 
         #Try statement included in case of NaNs or other matrix irregularities (such as near-0 eigenvalues)
-        try
+        #try
             #Placeholder for sigma update
             sigmatemp = nlearn/(nlearn-1)*Symmetric(sum(s2[ceil(Int64, iadapt/3):iadapt])/nlearn - mutemp*mutemp')
 
@@ -144,7 +144,7 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
             #Create set of norms for centered and scaled output
             #Using many epochs to tune the shape, we use only the latest data for the full scale
             xnorms = Vector{Float64}()
-            for x in eachrow(xout[adaptstarts[iadapt+1],:])
+            for x in eachrow(xout[adaptstarts[iadapt]+1:adaptstarts[iadapt+1],:])
                 append!(xnorms, sum(x -> x^2, invtemp*(x - mutemp)))
             end
 
@@ -172,10 +172,10 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
             #Output sigma estimator, equal to sqrt of covariance estimator
             #We include the +r*I(d) term to get lower bounds on the eigenvalues
             sigmaest[iadapt+1] = Symmetric(evecstemp*Diagonal(sqrt.(evalstemp))*evecstemp') + r*I(d)
-        catch
+        #catch
             #If there was an error, just keep the previous estimate
-            sigmaest[iadapt+1] = sigmaest[iadapt]
-        end
+            #sigmaest[iadapt+1] = sigmaest[iadapt]
+        #end
         
         #Increment number of adaptations
         iadapt += 1
