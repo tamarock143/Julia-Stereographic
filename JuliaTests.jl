@@ -6,14 +6,16 @@ using Plots
 using SpecialFunctions
 using StatsBase
 
-d = 200
+d = 3
 sigma = sqrt(d)I(d)
-mu = zeros(d) .+ 1e5
-nu = 200
+mu = zeros(d)
+nu = 2.6
+
+sigma *= sqrt(nu/(nu-2))
 
 f = x -> log(1+ sum(x.^2)/nu)*-((nu+d)/2)
 
-d > 1 ? x0 = randn(d) .+ 1e5 : x0 = randn()
+d > 1 ? x0 = randn(d) : x0 = randn()
 
 d > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
 
@@ -23,16 +25,16 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 1e5
+T = 1e4
 delta = 0.2
-Tbrent = pi/200
+Tbrent = pi/20
 Epsbrent = 0.01
 tol = 1e-6
 lambda = 1
 
 beta = 1.1
-burnin = 1000
-adaptlength = 500
+burnin = 20
+adaptlength = 20
 R = 1e9
 r = 1e-6
 
@@ -58,12 +60,12 @@ end
 #Plot comparison against the true distribution
 p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 #q(x) = 1/sqrt(2pi*sigmaf)*exp(-x^2/2sigmaf)
-#q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
+q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
 b_range = range(-8,8, length=101)
 
 histogram(out.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
 plot!(p, label= "N(0,1)", lw=3)
-#plot!(q, label= "t", lw=3)
+plot!(q, label= "t", lw=3)
 xlabel!("x")
 ylabel!("P(x)")
 
@@ -81,6 +83,21 @@ xnorms = sum(out.x.^2, dims=2)
 plot(sqrt.(xnorms), label = "||x||")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
 
+latf(x,theta) = (x - theta)/(x + theta) #Latitude of a given z at position ||x||^2/theta
+plot(0:0.1:10, theta -> mean(x -> latf(x,theta), xnorms))
+hline!([0])
+c = RobMonro(latf, xnorms, d, d^-10, d^10; lower = 1, upper = d^2)
+
+latfm(theta) = mean(x -> latf(x,theta), xnorms)
+latfg(theta) = -mean(x -> 2x/(x+theta)^2, xnorms)
+cn = Newton(latfm,latfg, d, tol)
+vline!([cn])
+
+latf2(theta) = sum(x -> ((x - theta)/(x + theta))^2, xnorms)/length(xnorms) #Mean of Squared Latitude of a given z at position ||x||^2/theta
+c2 = Brent(latf2, 1, d^2, tol)
+
+plot(0:0.1:10,theta -> sum(latf.(xnorms,theta))/length(xnorms))
+
 a = 0 
 b = 50
 norms_range = range(a,b, length = 101)
@@ -95,6 +112,8 @@ plot(autocor(xnorms))
 
 plot(0:delta:T,out.z[:,end], label = "z_{d+1}")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
+
+mean(out.z[:,end])
 
 savefig("tAdaptationsLatitude.pdf")
 
