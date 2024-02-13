@@ -23,7 +23,7 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 1e4
+T = 1e3
 delta = 0.2
 Tbrent = pi/200
 Epsbrent = 0.01
@@ -156,12 +156,12 @@ beta_inc(d/2,nu/2,d*a/(d*a+nu))[2]
 
 ### Misc Tests
 
-testf(x,theta) = x - theta
+testf(x,theta) = x + theta
 testx = [-1,1]
 
 mean(testx)
 
 RobMonro(testf, testx, 0, 1, 1e7; lower = -1e9, upper = 1e9)
-Newton(theta -> mean(x -> testf(x,theta), testx), x -> -1, 0, 1e-6)
+Newton(theta -> mean(x -> testf(x,theta), testx), x -> -1, 3, 1e-6)
 
 xnorms
