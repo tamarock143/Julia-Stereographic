@@ -23,16 +23,16 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 1e6
+T = 1e4
 delta = 0.2
 Tbrent = pi/200
 Epsbrent = 0.01
 tol = 1e-6
 lambda = 1
 
-beta = 1.1
-burnin = 20
-adaptlength = 20
+beta = 0.6
+burnin = 500
+adaptlength = 100
 R = 1e9
 r = 1e-6
 
@@ -156,20 +156,12 @@ beta_inc(d/2,nu/2,d*a/(d*a+nu))[2]
 
 ### Misc Tests
 
-X = randn(10000,200)
-plot(log.(1 .+ sqrt.(d*eigen(cov(X)).values)), label = "iid")
-plot!(log.(1 .+ sqrt.(eigen(d*cov(out.x, corrected = false)).values)), label = "SBPS")
-plot!(log.(1 .+ eigen(out.sigma[end]).values), label = "SBPS Est")
-plot!(x -> log(1+sqrt(d)), label = "theoretical")
+testf(x,theta) = x - theta
+testx = [-1,1]
 
+mean(testx)
 
+RobMonro(testf, testx, 0, 1, 1e7; lower = -1e9, upper = 1e9)
+Newton(theta -> mean(x -> testf(x,theta), testx), x -> -1, 0, 1e-6)
 
-A = randn(3,3)
-A = A'*A
-eigentemp = eigen(A)
-
-A2 = sqrt(A)
-
-A - eigentemp.vectors*Diagonal(eigentemp.values)*eigentemp.vectors'
-
-A2 - eigentemp.vectors*Diagonal(sqrt.(eigentemp.values))*eigentemp.vectors'
+xnorms

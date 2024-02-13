@@ -141,7 +141,9 @@ Newton = function (f, gradf, x, tol)
     #Calculate gradf(x)
     fx = f(x)
 
-    while abs(fx) > tol
+    i = 0
+
+    while abs(fx) > tol && i < 1e9
         gradx = gradf(x)
 
         #Take one Newton's method step
@@ -149,6 +151,8 @@ Newton = function (f, gradf, x, tol)
 
         #Update gradient
         fx = f(x)
+
+        i += 1
     end
 
     #Return root
@@ -156,7 +160,7 @@ Newton = function (f, gradf, x, tol)
 end
 
 #Robbins-Monro algorithm for root finding (1 dimensional function)
-#We consider a function F(theta) = sum(f.(x,theta))
+#We consider a function F(theta) = sum(x -> f.(x,theta))
 RobMonro = function (f, x, theta, step, N; lower = 0, upper = 1)
     for i in 1:N
         theta -= step/i*f(rand(x),theta)
