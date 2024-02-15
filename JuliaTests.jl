@@ -6,14 +6,14 @@ using Plots
 using SpecialFunctions
 using StatsBase
 
-d = 200
+d = 1
 sigma = sqrt(d)I(d)
-mu = zeros(d) .+ 1e5
-nu = 200
+mu = zeros(d)
+nu = 0.6
 
 f = x -> log(1+ sum(x.^2)/nu)*-((nu+d)/2)
 
-d > 1 ? x0 = randn(d) .+ 1e5 : x0 = randn()
+d > 1 ? x0 = randn(d) : x0 = randn()
 
 d > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
 
@@ -25,14 +25,14 @@ gradlogf(x0)
 
 T = 1e3
 delta = 0.2
-Tbrent = pi/200
+Tbrent = pi/20
 Epsbrent = 0.01
 tol = 1e-6
 lambda = 1
 
-beta = 0.6
-burnin = 500
-adaptlength = 100
+beta = 1.1
+burnin = 50
+adaptlength = 50
 R = 1e9
 r = 1e-6
 
@@ -59,7 +59,7 @@ end
 p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 #q(x) = 1/sqrt(2pi*sigmaf)*exp(-x^2/2sigmaf)
 q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
-b_range = range(-8,8, length=101)
+b_range = range(-10,10, length=101)
 
 histogram(out.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
 plot!(p, label= "N(0,1)", lw=3)
@@ -81,10 +81,10 @@ xnorms = sum(out.x.^2, dims=2)
 plot(sqrt.(xnorms), label = "||x||")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
 
-latf(x,theta) = (x - theta)/(x + theta) #Latitude of a given z at position ||x||^2/theta
+latf(x,theta) = -(x - theta)/(x + theta) #Latitude of a given z at position ||x||^2/theta
 plot(0:0.1:10, theta -> mean(x -> latf(x,theta), xnorms))
 hline!([0])
-c = RobMonro(latf, xnorms, d, d^-10, d^10; lower = 1, upper = d^2)
+c = RobMonro(latf, xnorms, d, 1, 1e6; lower = 1, upper = d^2)
 
 latfm(theta) = mean(x -> latf(x,theta), xnorms)
 latfg(theta) = -mean(x -> 2x/(x+theta)^2, xnorms)

@@ -144,7 +144,7 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
             #Create set of norms for centered and scaled output
             #Using many epochs to tune the shape, we use only the latest data for the full scale
             xnorms = Vector{Float64}()
-            for x in eachrow(xout[adaptstarts[iadapt]+1:adaptstarts[iadapt+1],:])
+            for x in eachrow(xpath)
                 append!(xnorms, sum(x -> x^2, invtemp*(x - mutemp)))
             end
 
@@ -157,7 +157,7 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
             #c = Newton(latf, latgrad, d, tol)
 
             latf(x,theta) = -(x - theta)/(x + theta) #Negative Latitude of a given z at position ||x||^2/theta
-            c = RobMonro(latf, xnorms, d, 1, 1e6; lower = d^-10, upper = d^10)
+            c = RobMonro(latf, xnorms, d, 1, 1e6; lower = (10d)^-10, upper = (10d)^10)
             println(c/d)
             
             #Scale the covariance
