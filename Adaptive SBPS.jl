@@ -135,7 +135,7 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
         muest[iadapt+1,:] = mutemp
 
         #Try statement included in case of NaNs or other matrix irregularities (such as near-0 eigenvalues)
-        #try
+        try
             #Placeholder for sigma update
             sigmatemp = nlearn/(nlearn-1)*Symmetric(sum(s2[ceil(Int64, iadapt/3):iadapt])/nlearn - mutemp*mutemp')
 
@@ -157,7 +157,7 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
             #c = Newton(latf, latgrad, d, tol)
 
             latf(x,theta) = -(x - theta)/(x + theta) #Negative Latitude of a given z at position ||x||^2/theta
-            c = RobMonro(latf, xnorms, d, 1, 1e6; lower = (10d)^-10, upper = (10d)^10)
+            c = RobMonro(latf, xnorms, d, 1, 1e6; lower = (10d)^-10, upper = (10Float64(d))^10)
             println(c/d)
             
             #Scale the covariance
@@ -176,10 +176,11 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
             #Output sigma estimator, equal to sqrt of covariance estimator
             #We include the +r*I(d) term to get lower bounds on the eigenvalues
             sigmaest[iadapt+1] = Symmetric(evecstemp*Diagonal(sqrt.(evalstemp))*evecstemp') + r*I(d)
-        #catch
+        catch
             #If there was an error, just keep the previous estimate
-            #sigmaest[iadapt+1] = sigmaest[iadapt]
-        #end
+            sigmaest[iadapt+1] = sigmaest[iadapt]
+            println("Warning: Covariance Matrix Update Error")
+        end
         
         #Increment number of adaptations
         iadapt += 1
