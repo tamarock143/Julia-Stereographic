@@ -144,7 +144,7 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
             #Create set of norms for centered and scaled output
             #Using many epochs to tune the shape, we use only the latest data for the full scale
             xnorms = Vector{Float64}()
-            for x in eachrow(xpath)
+            for x in eachrow(xpath[floor(Int64,size(xpath)[1]/2):end,:])
                 append!(xnorms, sum(x -> x^2, invtemp*(x - mutemp)))
             end
 

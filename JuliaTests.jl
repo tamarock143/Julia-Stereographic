@@ -6,14 +6,14 @@ using Plots
 using SpecialFunctions
 using StatsBase
 
-d = 200
-sigma = sqrt(d)I(d)
-mu = zeros(d) .+ 1e4
-nu = 200
+d = 2
+sigma = 1e4*sqrt(d)I(d)
+mu = zeros(d)
+nu = 1.6
 
 f = x -> log(1+ sum(x.^2)/nu)*-((nu+d)/2)
 
-d > 1 ? x0 = randn(d) .+ 1e4 : x0 = randn()
+d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = sigma*rand([1,-1]) + mu
 
 d > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
 
@@ -23,16 +23,16 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 1e4
+T = 1e3
 delta = 0.2
-Tbrent = pi/50
+Tbrent = pi/200
 Epsbrent = 0.01
 tol = 1e-6
 lambda = 1
 
 beta = 1.1
-burnin = 500
-adaptlength = 100
+burnin = 50
+adaptlength = 50
 R = 1e9
 r = 1e-6
 
@@ -121,7 +121,7 @@ savefig("tAdaptationsLatitude.pdf")
 delta = 1.45d^(-1/4)
 L = 5
 d > 1 ? M = I(d) : M = 1
-N::Int64 = 1e7
+N::Int64 = 1e6
 
 @time hmcout = HMC(f, gradlogf, x0, N, delta, L; M = M);
 hmcout.a
@@ -135,7 +135,7 @@ plot!([q p], label= ["t" "N(0,1)"], lw=3)
 xlabel!("x")
 ylabel!("P(x)")
 
-plot(hmcout.x[collect(Int64,1:1e2:N),1], label = "x")
+plot(hmcout.x[collect(Int64,1:1e0:N),1], label = "x")
 
 plot(autocor(hmcout.x[:,1]))
 
@@ -146,12 +146,5 @@ plot(sqrt.(hmcxnorms[1:1000000]), label = "||x||")
 
 ### Misc Tests
 
-testf(x,theta) = x + theta
-testx = [-1,1]
-
-mean(testx)
-
-RobMonro(testf, testx, 0, 1, 1e7; lower = -1e9, upper = 1e9)
-Newton(theta -> mean(x -> testf(x,theta), testx), x -> -1, 3, 1e-6)
-
-xnorms
+plot(zpath[:,end])
+plot!(map(x -> (x-d)/(x+d),xnorms))
