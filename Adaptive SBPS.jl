@@ -80,7 +80,7 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
         #If we've run the full time, end the process
         left == 0 && break
 
-        println("Adaptation number: ", iadapt, "/", nadapt, "\n")
+        println("Adaptation number: ", iadapt, "/", nadapt, ". Adaptation length: ", t, "\n")
         
         #Run the process with the given parameters
         @time (zpath,vpath) = SBPSSimulator(gradlogf, xout[adaptstarts[iadapt],:], lambda, min(t,left), delta; 
@@ -158,7 +158,7 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
 
             latf(x,theta) = -(x - theta)/(x + theta) #Negative Latitude of a given z at position ||x||^2/theta
             c = RobMonro(latf, xnorms, d, 1, 1e6; lower = (10d)^-10, upper = (10Float64(d))^10)
-            println(c/d)
+            println(sqrt(c/d))
             
             #Scale the covariance
             sigmatemp *= c
