@@ -6,10 +6,10 @@ using Plots
 using SpecialFunctions
 using StatsBase
 
-d = 200
-sigma = 1e4*sqrt(d)I(d)
+d = 2
+sigma = sqrt(d)I(d)
 mu = zeros(d)
-nu = 200
+nu = 1.6
 
 f = x -> log(1+ sum(x.^2)/nu)*-((nu+d)/2)
 
@@ -23,8 +23,8 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 1e4
-delta = 0.2
+T = 1e5
+delta = 0.1
 Tbrent = pi/200
 Epsbrent = 0.01
 tol = 1e-6
@@ -34,7 +34,7 @@ beta = 1.1
 burnin = 50
 adaptlength = 50
 R = 1e9
-r = 1e-6
+r = 1e-2
 
 @time out = SBPSAdaptive(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Epsbrent, tol, sigma, mu, burnin, adaptlength);
 
@@ -67,8 +67,9 @@ plot!(q, label= "t", lw=3)
 xlabel!("x")
 ylabel!("P(x)")
 
-plot(0:delta:T,out.x[:,1], label = "x")
+plot(0:delta:T,out.x[:,1], label = "x1")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
+plot!(0:delta:T,out.x[:,2], label = "x2")
 
 map(x -> sum(x -> x^2, x - mu), eachrow(out.mu))
 map(x -> sum(x -> x^2, eigen(x - sqrt(d)I(d)).values), out.sigma)
@@ -77,8 +78,8 @@ plot(out.x[:,1],out.x[:,2])
 
 plot(autocor(out.x[:,1]))
 
-xnorms = sum(out.x.^2, dims=2)
-plot(sqrt.(xnorms), label = "||x||")
+xnorms = vec(sum(out.x.^2, dims=2))
+plot(0:delta:T,sqrt.(xnorms), label = "||x||")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
 
 latf(x,theta) = -(x - theta)/(x + theta) #Latitude of a given z at position ||x||^2/theta
@@ -96,15 +97,13 @@ c2 = Brent(latf2, 1, d^2, tol)
 
 plot(0:0.1:10,theta -> sum(latf.(xnorms,theta))/length(xnorms))
 
-a = 0 
-b = 50
+#Comparison of norms with F-distribution
+a = 1e5
+b = 1e6
 norms_range = range(a,b, length = 101)
 histogram(xnorms/d, label="||x||", bins=norms_range, normalize=:pdf, color=:gray)
 p(x) = 1/beta(d/2,nu/2)*(d/nu)^(d/2)*x^(d/2 - 1)*(1+d/nu*x)^(-(d+nu)/2)
-plot!(norms_range, x -> p(x)/(beta_inc(d/2,nu/2,d*b/(d*b+nu))[1] -beta_inc(d/2,nu/2,d*a/(d*a+nu))[1]),
-    label = "F", lw = 3)
-
-beta_inc(d/2,nu/2,d*a/(d*a+nu))[2]
+plot!(norms_range, x -> p(x)/(beta_inc(d/2,nu/2,d*b/(d*b+nu))[1] -beta_inc(d/2,nu/2,d*a/(d*a+nu))[1]), label = "F", lw = 3)
 
 plot(autocor(xnorms))
 
@@ -121,7 +120,7 @@ savefig("tAdaptationsLatitude.pdf")
 delta = 1.45d^(-1/4)
 L = 5
 d > 1 ? M = I(d) : M = 1
-N::Int64 = 1e6
+N::Int64 = 1e8
 
 @time hmcout = HMC(f, gradlogf, x0, N, delta, L; M = M);
 hmcout.a
@@ -141,10 +140,21 @@ plot(autocor(hmcout.x[:,1]))
 
 plot(hmcout.x[:,1],hmcout.x[:,2])
 
-hmcxnorms = sum(hmcout.x .^2, dims=2)
+hmcxnorms = vec(sum(hmcout.x .^2, dims=2))
 plot(sqrt.(hmcxnorms[1:1000000]), label = "||x||")
+maximum(hmcxnorms)
+
+#Comparison of norms with F-distribution
+a = 1e5
+b = 1e6
+norms_range = range(a,b, length = 101)
+histogram(hmcxnorms/d, label="||x||", bins=norms_range, normalize=:pdf, color=:gray)
+p(x) = 1/beta(d/2,nu/2)*(d/nu)^(d/2)*x^(d/2 - 1)*(1+d/nu*x)^(-(d+nu)/2)
+plot!(norms_range, x -> p(x)/(beta_inc(d/2,nu/2,d*b/(d*b+nu))[1] -beta_inc(d/2,nu/2,d*a/(d*a+nu))[1]), label = "F", lw = 3)
+
 
 ### Misc Tests
 
-plot(zpath[:,end])
-plot!(map(x -> (x-d)/(x+d),xnorms))
+plot(1:8, a -> sum(xnorms .>= 10^a)/length(xnorms) - beta_inc(d/2,nu/2,d*10^a/(d*10^a+nu))[2])
+#plot!(1:8, a -> beta_inc(d/2,nu/2,d*10^a/(d*10^a+nu))[2])
+plot!(1:8, a -> sum(hmcxnorms .>= 10^a)/length(hmcxnorms) - beta_inc(d/2,nu/2,d*10^a/(d*10^a+nu))[2])
