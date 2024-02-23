@@ -6,14 +6,14 @@ using Plots
 using SpecialFunctions
 using StatsBase
 
-d = 2
-sigma = 1e2*sqrt(d)I(d)
+d = 200
+sigma = 1e4*sqrt(d)I(d)
 mu = zeros(d)
-nu = 2
+nu = 200
 
-f = x -> log(nu + sum(x.^2))*-((nu+d)/2)
+f = x -> log(1+ sum(x.^2)/nu)*-((nu+d)/2)
 
-d > 1 ? x0 = sigma*randn(d) + mu : x0 = sigma*rand([1,-1]) + mu
+d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = sigma*rand([1,-1]) + mu
 
 d > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
 
@@ -23,9 +23,9 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 1e3
+T = 1e4
 delta = 0.2
-Tbrent = pi/20
+Tbrent = pi/200
 Epsbrent = 0.01
 tol = 1e-6
 lambda = 1
@@ -61,7 +61,7 @@ p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
 b_range = range(-10,10, length=101)
 
-histogram(out.x[:,2], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
+histogram(out.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
 plot!(p, label= "N(0,1)", lw=3)
 plot!(q, label= "t", lw=3)
 xlabel!("x")
@@ -69,22 +69,11 @@ ylabel!("P(x)")
 
 plot(0:delta:T,out.x[:,1], label = "x")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
-plot!(0:delta:T,out.x[:,2], label = "x")
-
-plot(150:delta:T,out.x[Int64(150/delta)+1:end,1], label = "x")
-vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
-plot!(150:delta:T,out.x[Int64(150/delta)+1:end,2], label = "x")
-
-plot(0:delta:T,out.z[:,1], label = "x")
-vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
-plot!(0:delta:T,out.z[:,2], label = "x")
 
 map(x -> sum(x -> x^2, x - mu), eachrow(out.mu))
 map(x -> sum(x -> x^2, eigen(x - sqrt(d)I(d)).values), out.sigma)
 
 plot(out.x[:,1],out.x[:,2])
-
-plot(out.x[Int64(150/delta)+1:end,1],out.x[Int64(150/delta)+1:end,2])
 
 plot(autocor(out.x[:,1]))
 
@@ -123,12 +112,6 @@ plot(0:delta:T,out.z[:,end], label = "z_{d+1}")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
 
 mean(out.z[:,end])
-
-scatter(out.mu[:,1], out.mu[:,2])
-for (i,x,y) in zip(2:6,out.mu[2:6,1],out.mu[2:6,2])
-    annotate!(x - 50, y, Plots.text(string(i)))
-end
-plot!()
 
 savefig("tAdaptationsLatitude.pdf")
 
