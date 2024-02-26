@@ -23,9 +23,9 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 1e5
+T = 1e6
 delta = 0.1
-Tbrent = pi/200
+Tbrent = pi/10
 Epsbrent = 0.01
 tol = 1e-6
 lambda = 1
@@ -34,7 +34,7 @@ beta = 1.1
 burnin = 50
 adaptlength = 50
 R = 1e9
-r = 1e-2
+r = 1e-3
 
 @time out = SBPSAdaptive(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Epsbrent, tol, sigma, mu, burnin, adaptlength);
 
@@ -71,31 +71,14 @@ plot(0:delta:T,out.x[:,1], label = "x1")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
 plot!(0:delta:T,out.x[:,2], label = "x2")
 
-map(x -> sum(x -> x^2, x - mu), eachrow(out.mu))
-map(x -> sum(x -> x^2, eigen(x - sqrt(d)I(d)).values), out.sigma)
+#map(x -> sum(x -> x^2, x - mu), eachrow(out.mu))
+#map(x -> sum(x -> x^2, eigen(x - sqrt(d)I(d)).values), out.sigma)
 
-plot(out.x[:,1],out.x[:,2])
-
-plot(autocor(out.x[:,1]))
+#plot(out.x[:,1],out.x[:,2])
 
 xnorms = vec(sum(out.x.^2, dims=2))
-plot(0:delta:T,sqrt.(xnorms), label = "||x||")
-vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
-
-latf(x,theta) = -(x - theta)/(x + theta) #Latitude of a given z at position ||x||^2/theta
-plot(0:0.1:10, theta -> mean(x -> latf(x,theta), xnorms))
-hline!([0])
-c = RobMonro(latf, xnorms, d, 1, 1e6; lower = 1, upper = d^2)
-
-latfm(theta) = mean(x -> latf(x,theta), xnorms)
-latfg(theta) = -mean(x -> 2x/(x+theta)^2, xnorms)
-cn = Newton(latfm,latfg, d, tol)
-vline!([cn])
-
-latf2(theta) = sum(x -> ((x - theta)/(x + theta))^2, xnorms)/length(xnorms) #Mean of Squared Latitude of a given z at position ||x||^2/theta
-c2 = Brent(latf2, 1, d^2, tol)
-
-plot(0:0.1:10,theta -> sum(latf.(xnorms,theta))/length(xnorms))
+#plot(0:delta:T,sqrt.(xnorms), label = "||x||")
+#vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
 
 #Comparison of norms with F-distribution
 a = 1e5
@@ -112,17 +95,17 @@ vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
 
 mean(out.z[:,end])
 
-savefig("tAdaptationsLatitude.pdf")
+#savefig("tAdaptationsLatitude.pdf")
 
 
 ### HMC Testing
 
-delta = 1.45d^(-1/4)
+hmcdelta = 1.45d^(-1/4)
 L = 5
 d > 1 ? M = I(d) : M = 1
-N::Int64 = 1e8
+N::Int64 = 2e7
 
-@time hmcout = HMC(f, gradlogf, x0, N, delta, L; M = M);
+@time hmcout = HMC(f, gradlogf, x0, N, hmcdelta, L; M = M);
 hmcout.a
 #Plot comparison against the true distribution
 p(x) = 1/sqrt(2pi)*exp(-x^2/2)
@@ -134,14 +117,12 @@ plot!([q p], label= ["t" "N(0,1)"], lw=3)
 xlabel!("x")
 ylabel!("P(x)")
 
-plot(hmcout.x[collect(Int64,1:1e0:N),1], label = "x")
+#plot(hmcout.x[collect(Int64,1:1e0:N),1], label = "x")
 
-plot(autocor(hmcout.x[:,1]))
-
-plot(hmcout.x[:,1],hmcout.x[:,2])
+#plot(hmcout.x[:,1],hmcout.x[:,2])
 
 hmcxnorms = vec(sum(hmcout.x .^2, dims=2))
-plot(sqrt.(hmcxnorms[1:1000000]), label = "||x||")
+#plot(sqrt.(hmcxnorms), label = "||x||")
 maximum(hmcxnorms)
 
 #Comparison of norms with F-distribution
@@ -155,6 +136,12 @@ plot!(norms_range, x -> p(x)/(beta_inc(d/2,nu/2,d*b/(d*b+nu))[1] -beta_inc(d/2,n
 
 ### Misc Tests
 
-plot(1:8, a -> sum(xnorms .>= 10^a)/length(xnorms) - beta_inc(d/2,nu/2,d*10^a/(d*10^a+nu))[2])
+Z(a) = beta_inc(d/2,nu/2,d*a/(d*a+nu))[2]
+
+plot(10 .^(-1:0.1:10), a -> abs(sum(xnorms .>= a)/length(xnorms) - Z(a))/Z(a), label = "SBPS")
+plot!(xscale=:log10, minorgrid=true)
 #plot!(1:8, a -> beta_inc(d/2,nu/2,d*10^a/(d*10^a+nu))[2])
-plot!(1:8, a -> sum(hmcxnorms .>= 10^a)/length(hmcxnorms) - beta_inc(d/2,nu/2,d*10^a/(d*10^a+nu))[2])
+plot!(10 .^(-1:0.1:10), a -> abs(sum(hmcxnorms .>= a)/length(hmcxnorms) - Z(a))/Z(a), label = "HMC")
+title!("Absolute Relative Error for CCDF of norm of a t-distribution\nwith d = 2, ν=1.6 (Runtime of ~1000 seconds)", titlefontsize = 10)
+
+#savefig("tNormDistComparison.pdf")
