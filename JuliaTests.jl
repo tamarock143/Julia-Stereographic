@@ -5,11 +5,12 @@ using ForwardDiff
 using Plots
 using SpecialFunctions
 using StatsBase
+using JLD
 
-d = 2
+d = 200
 sigma = sqrt(d)I(d)
 mu = zeros(d)
-nu = 1.6
+nu = 200
 
 f = x -> log(1+ sum(x.^2)/nu)*-((nu+d)/2)
 
@@ -23,7 +24,7 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 1e6
+T = 7.2e6
 delta = 0.1
 Tbrent = pi/10
 Epsbrent = 0.01
@@ -31,8 +32,8 @@ tol = 1e-6
 lambda = 1
 
 beta = 1.1
-burnin = 50
-adaptlength = 50
+burnin = 500
+adaptlength = 100
 R = 1e9
 r = 1e-3
 
@@ -100,10 +101,10 @@ mean(out.z[:,end])
 
 ### HMC Testing
 
-hmcdelta = 1.45d^(-1/4)
+hmcdelta = 1.4d^(-1/4)
 L = 5
 d > 1 ? M = I(d) : M = 1
-N::Int64 = 2e7
+N::Int64 = 3.6e6
 
 @time hmcout = HMC(f, gradlogf, x0, N, hmcdelta, L; M = M);
 hmcout.a
@@ -138,10 +139,23 @@ plot!(norms_range, x -> p(x)/(beta_inc(d/2,nu/2,d*b/(d*b+nu))[1] -beta_inc(d/2,n
 
 Z(a) = beta_inc(d/2,nu/2,d*a/(d*a+nu))[2]
 
-plot(10 .^(-1:0.1:10), a -> abs(sum(xnorms .>= a)/length(xnorms) - Z(a))/Z(a), label = "SBPS")
-plot!(xscale=:log10, minorgrid=true)
-#plot!(1:8, a -> beta_inc(d/2,nu/2,d*10^a/(d*10^a+nu))[2])
-plot!(10 .^(-1:0.1:10), a -> abs(sum(hmcxnorms .>= a)/length(hmcxnorms) - Z(a))/Z(a), label = "HMC")
-title!("Absolute Relative Error for CCDF of norm of a t-distribution\nwith d = 2, ν=1.6 (Runtime of ~1000 seconds)", titlefontsize = 10)
+mytest = function ()
+    @time out = SBPSAdaptive(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Epsbrent, tol, sigma, mu, burnin, adaptlength);
 
-#savefig("tNormDistComparison.pdf")
+    save("sbps.jld", "SBPS", out)
+    xnorms = vec(sum(out.x.^2, dims=2))
+
+    @time hmcout = HMC(f, gradlogf, x0, N, hmcdelta, L; M = M)
+
+    save("hmc.jld", "HMC", hmcout)
+    hmcxnorms = vec(sum(hmcout.x .^2, dims=2))
+
+    p = plot(10 .^(-2:0.1:4), a -> abs(sum(xnorms .>= a)/length(xnorms) - Z(a))/Z(a), label = "SBPS")
+    plot!(p, xscale=:log10, minorgrid=true)
+    plot!(p, 10 .^(-2:0.1:4), a -> abs(sum(hmcxnorms .>= a)/length(hmcxnorms) - Z(a))/Z(a), label = "HMC")
+    title!(p, "Absolute Relative Error for CCDF of norm of a t-distribution\nwith d = ν = 200 (Runtime of ~1000 seconds)", titlefontsize = 10)
+
+    savefig("tNormDistComparison200.pdf")
+end
+
+mytest()
