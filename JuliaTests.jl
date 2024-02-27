@@ -7,10 +7,10 @@ using SpecialFunctions
 using StatsBase
 using JLD
 
-d = 200
+d = 2
 sigma = sqrt(d)I(d)
 mu = zeros(d)
-nu = 200
+nu = 1.6
 
 f = x -> log(1+ sum(x.^2)/nu)*-((nu+d)/2)
 
@@ -24,7 +24,7 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 7.2e6
+T = 1e6
 delta = 0.1
 Tbrent = pi/10
 Epsbrent = 0.01
@@ -32,8 +32,8 @@ tol = 1e-6
 lambda = 1
 
 beta = 1.1
-burnin = 500
-adaptlength = 100
+burnin = 50
+adaptlength = 50
 R = 1e9
 r = 1e-3
 
@@ -101,10 +101,10 @@ mean(out.z[:,end])
 
 ### HMC Testing
 
-hmcdelta = 1.4d^(-1/4)
+hmcdelta = 1.45d^(-1/4)
 L = 5
 d > 1 ? M = I(d) : M = 1
-N::Int64 = 3.6e6
+N::Int64 = 2e7
 
 @time hmcout = HMC(f, gradlogf, x0, N, hmcdelta, L; M = M);
 hmcout.a
@@ -139,6 +139,12 @@ plot!(norms_range, x -> p(x)/(beta_inc(d/2,nu/2,d*b/(d*b+nu))[1] -beta_inc(d/2,n
 
 Z(a) = beta_inc(d/2,nu/2,d*a/(d*a+nu))[2]
 
+plot(10 .^(-2:0.1:11), a -> log(abs(sum(xnorms/d .>= a)/length(xnorms) - Z(a))/Z(a)), label = "SBPS")
+plot!(xscale=:log10, minorgrid=true)
+plot!(10 .^(-2:0.1:11), a -> log(abs(sum(hmcxnorms/d .>= a)/length(hmcxnorms) - Z(a))/Z(a)), label = "HMC")
+title!("Absolute Relative Error for CCDF of norm of a t-distribution\nwith d = 2,  ν = 1.6 (Runtime of ~1000 seconds)", titlefontsize = 10)
+
+
 mytest = function ()
     @time out = SBPSAdaptive(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Epsbrent, tol, sigma, mu, burnin, adaptlength);
 
@@ -150,12 +156,15 @@ mytest = function ()
     save("hmc.jld", "HMC", hmcout)
     hmcxnorms = vec(sum(hmcout.x .^2, dims=2))
 
-    p = plot(10 .^(-2:0.1:4), a -> abs(sum(xnorms .>= a)/length(xnorms) - Z(a))/Z(a), label = "SBPS")
+    p = plot(10 .^(-2:0.1:4), a -> abs(sum(xnorms/d .>= a)/length(xnorms) - Z(a))/Z(a), label = "SBPS")
     plot!(p, xscale=:log10, minorgrid=true)
-    plot!(p, 10 .^(-2:0.1:4), a -> abs(sum(hmcxnorms .>= a)/length(hmcxnorms) - Z(a))/Z(a), label = "HMC")
-    title!(p, "Absolute Relative Error for CCDF of norm of a t-distribution\nwith d = ν = 200 (Runtime of ~1000 seconds)", titlefontsize = 10)
+    plot!(p, 10 .^(-2:0.1:4), a -> abs(sum(hmcxnorms/d .>= a)/length(hmcxnorms) - Z(a))/Z(a), label = "HMC")
+    title!(p, "Absolute Relative Error for CCDF of norm of a t-distribution\nwith d = 2,  ν = 1.6 (Runtime of ~1000 seconds)", titlefontsize = 10)
 
-    savefig("tNormDistComparison200.pdf")
+    savefig("tNormDistComparison.pdf")
 end
 
 mytest()
+
+out = load("sbps.jld")["SBPS"]
+hmcout = load("hmc.jld")["HMC"]
