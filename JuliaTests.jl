@@ -1,5 +1,6 @@
 include("Adaptive SBPS.jl")
 include("Hamiltonian MC.jl")
+include("Adaptive SRW.jl")
 
 using ForwardDiff
 using Plots
@@ -99,6 +100,47 @@ mean(out.z[:,end])
 #savefig("tAdaptationsLatitude.pdf")
 
 
+
+### SRW Tests
+
+h2 = 0.1*d^-1
+Nsrw::Int64 = 1e6
+
+beta = 1.1
+burnin = 1000
+adaptlength = 1000
+R = 1e9
+r = 1e-3
+
+@time srwout = SRWAdaptive(f, x0, h2, Nsrw, beta, r, R; sigma, mu, burnin, adaptlength);
+
+p(x) = 1/sqrt(2pi)*exp(-x^2/2)
+q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
+b_range = range(-8,8, length=101)
+
+histogram(srwout.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
+plot!([q p], label= ["t" "N(0,1)"], lw=3)
+xlabel!("x")
+ylabel!("P(x)")
+
+plot(srwout.x[:,1])
+vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
+
+#plot(srwout.x[:,1],srwout.x[:,2])
+
+srwxnorms = vec(sum(srwout.x .^2, dims=2))
+#plot(sqrt.(srwxnorms), label = "||x||")
+maximum(srwxnorms)
+
+Z(a) = beta_inc(d/2,nu/2,d*a/(d*a+nu))[2]
+
+plot(10 .^(-2:0.1:11), a -> log(abs(sum(srwxnorms/d .>= a)/length(srwxnorms) - Z(a))/Z(a)), label = "SRW")
+plot!(xscale=:log10, minorgrid=true)
+
+
+
+
+
 ### HMC Testing
 
 hmcdelta = 1.45d^(-1/4)
@@ -159,32 +201,3 @@ mytest()
 
 out = load("sbps.jld")["SBPS"]
 hmcout = load("hmc.jld")["HMC"]
-
-
-### SRW Tests
-
-h2 = 0.1*d^-1
-Nsrw::Int64 = 1e6
-
-@time srwout = SRWSimulator(f, x0, h2, Nsrw; sigma = sigma, mu = mu);
-srwout.a
-
-p(x) = 1/sqrt(2pi)*exp(-x^2/2)
-q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
-b_range = range(-8,8, length=101)
-
-histogram(srwout.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
-plot!([q p], label= ["t" "N(0,1)"], lw=3)
-xlabel!("x")
-ylabel!("P(x)")
-
-plot(srwout.z[:,d+1])
-
-#plot(srwout.x[:,1],srwout.x[:,2])
-
-srwxnorms = vec(sum(srwout.x .^2, dims=2))
-#plot(sqrt.(srwxnorms), label = "||x||")
-maximum(srwxnorms)
-
-plot(10 .^(-2:0.1:11), a -> log(abs(sum(srwxnorms/d .>= a)/length(srwxnorms) - Z(a))/Z(a)), label = "SRW")
-plot!(xscale=:log10, minorgrid=true)

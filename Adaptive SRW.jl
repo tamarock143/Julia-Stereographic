@@ -79,19 +79,21 @@ SRWAdaptive = function(logf, x0, h2, N, beta, r, R;
         
         #Run the process with the given parameters
         @time (xpath,zpath) = SRWSimulator(logf, xout[adaptstarts[iadapt],:], h2, min(t,left); 
-        sigma = sigmaest[iadapt], mu = muest[iadapt,:])
+        sigma = sigmaest[iadapt], mu = muest[iadapt,:], includefirst = (iadapt == 1))
 
         #Update how much time is left
         left >= t ? left -= t : left = 0
 
-        #Append this piece to the output
-        zout[adaptstarts[iadapt]:adaptstarts[iadapt+1]-1,:] = zpath[1:end-1,:]
-
-        #Input final values once needed
-        left == 0 && (zout[end,:] = zpath[end,:])
-
-        #Record this section of the x path
-        xout[adaptstarts[iadapt]+1:adaptstarts[iadapt+1],:] = xpath
+        #Input changes based on whether we need to include the first value
+        if iadapt == 1
+            #Append this piece to the output
+            zout[adaptstarts[iadapt]:adaptstarts[iadapt+1]-1,:] = zpath
+            xout[adaptstarts[iadapt]+1:adaptstarts[iadapt+1]-1,:] = xpath[2:end,:]
+        else
+            #Append this piece to the output
+            zout[adaptstarts[iadapt]:adaptstarts[iadapt+1]-1,:] = zpath
+            xout[adaptstarts[iadapt]:adaptstarts[iadapt+1]-1,:] = xpath
+        end
 
         #Update column sums
         m[iadapt] = vec(sum(xpath, dims = 1))
