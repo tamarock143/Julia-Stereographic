@@ -126,15 +126,6 @@ hmcxnorms = vec(sum(hmcout.x .^2, dims=2))
 #plot(sqrt.(hmcxnorms), label = "||x||")
 maximum(hmcxnorms)
 
-#Comparison of norms with F-distribution
-a = 1e5
-b = 1e6
-norms_range = range(a,b, length = 101)
-histogram(hmcxnorms/d, label="||x||", bins=norms_range, normalize=:pdf, color=:gray)
-p(x) = 1/beta(d/2,nu/2)*(d/nu)^(d/2)*x^(d/2 - 1)*(1+d/nu*x)^(-(d+nu)/2)
-plot!(norms_range, x -> p(x)/(beta_inc(d/2,nu/2,d*b/(d*b+nu))[1] -beta_inc(d/2,nu/2,d*a/(d*a+nu))[1]), label = "F", lw = 3)
-
-
 ### Misc Tests
 
 Z(a) = beta_inc(d/2,nu/2,d*a/(d*a+nu))[2]
@@ -168,3 +159,32 @@ mytest()
 
 out = load("sbps.jld")["SBPS"]
 hmcout = load("hmc.jld")["HMC"]
+
+
+### SRW Tests
+
+h2 = 0.1*d^-1
+Nsrw::Int64 = 1e6
+
+@time srwout = SRWSimulator(f, x0, h2, Nsrw; sigma = sigma, mu = mu);
+srwout.a
+
+p(x) = 1/sqrt(2pi)*exp(-x^2/2)
+q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
+b_range = range(-8,8, length=101)
+
+histogram(srwout.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
+plot!([q p], label= ["t" "N(0,1)"], lw=3)
+xlabel!("x")
+ylabel!("P(x)")
+
+plot(srwout.z[:,d+1])
+
+#plot(srwout.x[:,1],srwout.x[:,2])
+
+srwxnorms = vec(sum(srwout.x .^2, dims=2))
+#plot(sqrt.(srwxnorms), label = "||x||")
+maximum(srwxnorms)
+
+plot(10 .^(-2:0.1:11), a -> log(abs(sum(srwxnorms/d .>= a)/length(srwxnorms) - Z(a))/Z(a)), label = "SRW")
+plot!(xscale=:log10, minorgrid=true)
