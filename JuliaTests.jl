@@ -183,16 +183,19 @@ mytest = function ()
 
     save("sbps.jld", "SBPS", out)
     xnorms = vec(sum(out.x.^2, dims=2))
+    save("xnorms.jld", "xnorms", xnorms)
 
     @time hmcout = HMC(f, gradlogf, x0, N, hmcdelta, L; M = M)
 
     save("hmc.jld", "HMC", hmcout)
     hmcxnorms = vec(sum(hmcout.x .^2, dims=2))
+    save("hmcxnorms.jld", "hmcxnorms", hmcxnorms)
 
-    p = plot(10 .^(-2:0.1:11), a -> log(abs(sum(xnorms/d .>= a)/length(xnorms) - Z(a))/Z(a)), label = "SBPS")
+    p = plot(10 .^(-2:0.1:11), a -> log(abs(sum(xnorms .>= d*a)/length(xnorms) - Z(a))/Z(a)), label = "SBPS")
     plot!(p, xscale=:log10, minorgrid=true)
-    plot!(p, 10 .^(-2:0.1:11), a -> log(abs(sum(hmcxnorms/d .>= a)/length(hmcxnorms) - Z(a))/Z(a)), label = "HMC")
-    title!(p, "Absolute Relative Error for CCDF of norm of a t-distribution\nwith d = 2,  ν = 1.6 (Runtime of ~40000 seconds)", titlefontsize = 10)
+    plot!(p, 10 .^(-2:0.1:11), a -> log(abs(sum(hmcxnorms .>= d*a)/N - Z(a))/Z(a)), label = "HMC")
+    title!(p, "Log Absolute Relative Error for CCDF of norm of a t-distribution\nwith d = 2,  ν = 1.6 (Runtime of ~60000 seconds)", titlefontsize = 10)
+    plot!(p, legend=:bottomright)
 
     savefig("tNormDistComparison.pdf")
 end
@@ -201,3 +204,6 @@ mytest()
 
 out = load("sbps.jld")["SBPS"]
 hmcout = load("hmc.jld")["HMC"]
+
+xnorms = load("xnorms.jld")["xnorms"]
+hmcxnorms = load("hmcxnorms.jld")["hmcxnorms"]
