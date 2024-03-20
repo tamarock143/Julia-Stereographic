@@ -13,20 +13,23 @@ sigma = sqrt(d)I(d)
 mu = zeros(d)
 nu = 1.6
 
-f = x -> -sum(x.^2)/2
-
 d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = sigma*rand([1,-1]) + mu
+
+f = x -> -sum(x.^2)/2
 
 d > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
 
 #This is here to precalculate the gradient function
 gradlogf(x0)
 
+z = SPinv(x0; sigma = sigma, mu = mu, isinv = false)
+
+p = (I(d+1) - z*z')*randn(d+1)
 
 ### SBPS Testing
 
-T = 50
-delta = 0.01
+T = 2e6 #1269sec
+delta = 0.1
 Tbrent = pi/10
 Epsbrent = 0.01
 tol = 1e-6
@@ -114,7 +117,7 @@ mean(out.z[:,end])
 ### SRW Tests
 
 h2 = 0.1*d^-1
-Nsrw::Int64 = 5e5
+Nsrw::Int64 = 6e7 #1199 seconds
 
 beta = 1.1
 burnin = 1000
@@ -123,6 +126,8 @@ R = 1e9
 r = 1e-3
 
 @time srwout = SRWAdaptive(f, x0, h2, Nsrw, beta, r, R; sigma, mu, burnin, adaptlength);
+
+#@time srwout = SRWSimulator(f, x0, h2, Nsrw; sigma, mu);
 
 #@time srwout = SRWSimulator(f, x0, h2, Nsrw; sigma, mu);
 
@@ -161,7 +166,7 @@ vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
 hmcdelta = 1.45d^(-1/4)
 L = 5
 d > 1 ? M = I(d) : M = 1
-N::Int64 = 5e5
+N::Int64 = 4e7 #1104s
 
 @time hmcout = HMC(f, gradlogf, x0, N, hmcdelta, L; M = M);
 hmcout.a
@@ -194,29 +199,39 @@ plot!(10 .^(-2:0.1:11), a -> log(abs(sum(hmcxnorms/d .>= a)/length(hmcxnorms) - 
 title!("Absolute Relative Error for CCDF of norm of a t-distribution\nwith d = 2,  ν = 1.6 (Runtime of ~1000 seconds)", titlefontsize = 10)
 
 
-mytest = function ()
+#mySBPStest = function ()
     @time out = SBPSAdaptive(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Epsbrent, tol, sigma, mu, burnin, adaptlength);
 
     save("sbps.jld", "SBPS", out)
     xnorms = vec(sum(out.x.^2, dims=2))
     save("xnorms.jld", "xnorms", xnorms)
+#end
 
+#mySRWtest = function ()
+    @time out = SRWAdaptive(f, x0, h2, Nsrw, beta, r, R; sigma, mu, burnin, adaptlength);
+
+    save("srw.jld", "SRW", out)
+    srwxnorms = vec(sum(out.x.^2, dims=2))
+    save("srwxnorms.jld", "srwxnorms", srwxnorms)
+#end
+
+#myHMCtest = function ()
     @time hmcout = HMC(f, gradlogf, x0, N, hmcdelta, L; M = M)
 
     save("hmc.jld", "HMC", hmcout)
     hmcxnorms = vec(sum(hmcout.x .^2, dims=2))
     save("hmcxnorms.jld", "hmcxnorms", hmcxnorms)
+#end
 
-    p = plot(10 .^(-2:0.1:11), a -> log(abs(sum(xnorms .>= d*a)/length(xnorms) - Z(a))/Z(a)), label = "SBPS")
-    plot!(p, xscale=:log10, minorgrid=true)
-    plot!(p, 10 .^(-2:0.1:11), a -> log(abs(sum(hmcxnorms .>= d*a)/N - Z(a))/Z(a)), label = "HMC")
-    title!(p, "Log Absolute Relative Error for CCDF of norm of a t-distribution\nwith d = 2,  ν = 1.6 (Runtime of ~60000 seconds)", titlefontsize = 10)
-    plot!(p, legend=:bottomright)
+p = plot(10 .^(-2:0.1:11), a -> abs(sum(xnorms .>= d*a)/length(xnorms) - Z(a))/Z(a), label = "SBPS")
+plot!(p, xscale=:log10, yscale=:log10, minorgrid=true)
+plot!(p, 10 .^(-2:0.1:11), a -> abs(sum(srwxnorms .>= d*a)/Nsrw - Z(a))/Z(a), label = "SRW")
+plot!(10 .^(-2:0.1:11), a -> abs(sum(hmcxnorms/d .>= a)/N - Z(a))/Z(a), label = "HMC")
+plot!(p, legend=:bottomright)
+title!(p, "Log Absolute Relative Error for CCDF of norm of a t-distribution\nwith d = 2,  ν = 1.6 (Runtime of ~2400 seconds)", titlefontsize = 10)
 
-    savefig("tNormDistComparison.pdf")
-end
+savefig("tNormDistComparisonSRW.pdf")
 
-mytest()
 
 out = load("sbps.jld")["SBPS"]
 hmcout = load("hmc.jld")["HMC"]
@@ -224,6 +239,7 @@ hmcout = load("hmc.jld")["HMC"]
 xnorms = load("xnorms.jld")["xnorms"]
 hmcxnorms = load("hmcxnorms.jld")["hmcxnorms"]
 
+srwxnorms = load("srwxnorms.jld")["srwxnorms"]
 
 p = plot()
 x = range(-1,1,length=1001)[2:end-1]
