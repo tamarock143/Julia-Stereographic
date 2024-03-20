@@ -44,6 +44,8 @@ SBPSSimulator = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1
     #Set up Bounce rate function
     bouncerate = SBPSRate(gradlogf)
 
+    bounceindic = Vector{Bool}()
+
     while left > 0
         #Simulate next refreshment time according to Exp(lambda)
         tauref = randexp(Float64)/lambda
@@ -91,6 +93,8 @@ SBPSSimulator = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1
             Bmin = Bmax
             Bmax += Tbrent*(1 + Epsbrent - (z[end]*sin(Bmax) + v[end]*cos(Bmax))^2)
         end
+
+        push!(bounceindic, !nobounce)
 
         #Time until next event, or need new upper bound
         t = min(left, tauref, taubounce)
@@ -148,7 +152,10 @@ SBPSSimulator = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1
     zout[n,:] = z
     vout[n,:] = v
 
-    return (z = zout, v = vout)
+    #Remove final event, since it records the "end" event
+    pop!(bounceindic)
+
+    return (z = zout, v = vout, events = bounceindic)
 end
 
 SBPSEventSimulator = function (gradlogf, x0, lambda, T; Tbrent = pi/24, tol = 1e-6,

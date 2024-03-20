@@ -13,7 +13,7 @@ sigma = sqrt(d)I(d)
 mu = zeros(d)
 nu = 1.6
 
-f = x -> log(1+ sum(x.^2)/nu)*-((nu+d)/2)
+f = x -> -sum(x.^2)/2
 
 d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = sigma*rand([1,-1]) + mu
 
@@ -25,8 +25,8 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 4e7
-delta = 0.1
+T = 50
+delta = 0.01
 Tbrent = pi/10
 Epsbrent = 0.01
 tol = 1e-6
@@ -41,7 +41,7 @@ r = 1e-3
 @time out = SBPSAdaptive(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Epsbrent, tol, sigma, mu, burnin, adaptlength);
 
 FullSBPS = function()
-    (zout,vout) = SBPSSimulator(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, Epsbrent = Epsbrent, tol = tol,
+    (zout,vout,eventsout) = SBPSSimulator(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, Epsbrent = Epsbrent, tol = tol,
     sigma = sigma, mu = mu);
 
     n = floor(BigInt, T/delta)+1 #Total number of observations of the skeleton path
@@ -52,19 +52,19 @@ FullSBPS = function()
         xout[i,:] = SP(zout[i,:]; sigma = sigma, mu = mu)
     end
 
-    return (z = zout, v = vout, x = xout)
+    return (z = zout, v = vout, x = xout, events = eventsout)
 end
 
 #@time out = FullSBPS();
 
 #Plot comparison against the true distribution
-p(x) = 1/sqrt(2pi)*exp(-x^2/2)
+#p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 #q(x) = 1/sqrt(2pi*sigmaf)*exp(-x^2/2sigmaf)
 q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
-b_range = range(-10,10, length=101)
+b_range = range(-8,8, length=101)
 
 histogram(out.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
-plot!(p, label= "N(0,1)", lw=3)
+#plot!(p, label= "N(0,1)", lw=3)
 plot!(q, label= "t", lw=3)
 xlabel!("x")
 ylabel!("P(x)")
@@ -76,11 +76,21 @@ plot!(0:delta:T,out.x[:,2], label = "x2")
 #map(x -> sum(x -> x^2, x - mu), eachrow(out.mu))
 #map(x -> sum(x -> x^2, eigen(x - sqrt(d)I(d)).values), out.sigma)
 
+eventtimes = findall(x -> x>1e-2, vec(sum(x -> x^2,out.v[1:end-1,:] - out.v[2:end,:], dims=2)))
+
+
+myplot = plot(1, xlim = (-3.5,3.5), ylim = (-3.5,3.5), label="SBPS path",legend=:topleft,framestyle=:origin)
+myanim = @animate for i in 1:size(out.x)[1]
+    push!(myplot, out.x[i,1],out.x[i,2])
+end every 10
+
+gif(myanim, "SBPS.gif")
+
 #plot(out.x[:,1],out.x[:,2])
 
 xnorms = vec(sum(out.x.^2, dims=2))
-#plot(0:delta:T,sqrt.(xnorms), label = "||x||")
-#vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
+plot(0:delta:T,sqrt.(xnorms), label = "||x||")
+vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
 
 #Comparison of norms with F-distribution
 a = 1e5
@@ -104,7 +114,7 @@ mean(out.z[:,end])
 ### SRW Tests
 
 h2 = 0.1*d^-1
-Nsrw::Int64 = 1e6
+Nsrw::Int64 = 5e5
 
 beta = 1.1
 burnin = 1000
@@ -114,12 +124,15 @@ r = 1e-3
 
 @time srwout = SRWAdaptive(f, x0, h2, Nsrw, beta, r, R; sigma, mu, burnin, adaptlength);
 
-p(x) = 1/sqrt(2pi)*exp(-x^2/2)
+#@time srwout = SRWSimulator(f, x0, h2, Nsrw; sigma, mu);
+
+#p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
 b_range = range(-8,8, length=101)
 
 histogram(srwout.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
-plot!([q p], label= ["t" "N(0,1)"], lw=3)
+#plot!([q p], label= ["t" "N(0,1)"], lw=3)
+plot!(q, label= "t", lw=3)
 xlabel!("x")
 ylabel!("P(x)")
 
@@ -137,6 +150,8 @@ Z(a) = beta_inc(d/2,nu/2,d*a/(d*a+nu))[2]
 plot(10 .^(-2:0.1:11), a -> log(abs(sum(srwxnorms/d .>= a)/length(srwxnorms) - Z(a))/Z(a)), label = "SRW")
 plot!(xscale=:log10, minorgrid=true)
 
+plot(srwout.z[:,end])
+vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
 
 
 
@@ -146,17 +161,18 @@ plot!(xscale=:log10, minorgrid=true)
 hmcdelta = 1.45d^(-1/4)
 L = 5
 d > 1 ? M = I(d) : M = 1
-N::Int64 = 8e8
+N::Int64 = 5e5
 
 @time hmcout = HMC(f, gradlogf, x0, N, hmcdelta, L; M = M);
 hmcout.a
 #Plot comparison against the true distribution
-p(x) = 1/sqrt(2pi)*exp(-x^2/2)
+#p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
 b_range = range(-8,8, length=101)
 
 histogram(hmcout.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
-plot!([q p], label= ["t" "N(0,1)"], lw=3)
+#plot!([q p], label= ["t" "N(0,1)"], lw=3)
+plot!(q, label= "t", lw = 3)
 xlabel!("x")
 ylabel!("P(x)")
 
@@ -207,3 +223,15 @@ hmcout = load("hmc.jld")["HMC"]
 
 xnorms = load("xnorms.jld")["xnorms"]
 hmcxnorms = load("hmcxnorms.jld")["hmcxnorms"]
+
+
+p = plot()
+x = range(-1,1,length=1001)[2:end-1]
+
+for d in [1,2,5,10,50,100]
+    stephist!(p,collect(x), weights= map(x -> exp(-0.1d/(1-x))*(1-x)^(-d)*(1-x^2)^(d/2),x),
+     bins=x,normalize=:pdf,label="d=$d",lwd=3)
+end
+p
+
+savefig("NormLatitudeDensitiesSmallVar.pdf")
