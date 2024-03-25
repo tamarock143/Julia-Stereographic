@@ -1,6 +1,7 @@
 *.pdf
 *.png
 *.jpg
+*.gif
 *.vscode
 *.json
 *.jld

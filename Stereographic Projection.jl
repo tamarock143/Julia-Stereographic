@@ -52,6 +52,24 @@ SPdensity = function(f; logdens = false)
     return pi_S
 end
 
+#Gradient of logf(z) at z if x has pdf f
+SPgradlog = function (gradlogf)
+    gradlogz = function (z; sigma = sqrt(length(z)-1)I(length(z)-1), mu = zeros(length(z)-1))
+        #Project to Euclidean space
+        x = SP(z; sigma, mu)
+        d = length(x)
+
+        #Perform the rate calculation
+        #Need dimension check for d=1 case
+        d > 1 ? xgrad = gradlogf(x) : xgrad = gradlogf(x[1])
+
+        #Calculate gradient of density on sphere
+        zgrad = vcat(sigma*xgrad, d + sum((x.-mu).*xgrad))/(1-z[end])
+
+        return(zgrad)
+    end
+end
+
 ## SBPS Setup ##
 
 #SBPS Deterministic path of length t, discretised with time step delta
