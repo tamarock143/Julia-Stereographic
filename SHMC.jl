@@ -11,8 +11,7 @@ Rattle = function (gradlogf, z0, p0, h, L)
     abs(sum(z0.*p0)) >= 1e-12 && error("z.p != 0")
 
     #Initialise position and momentum variables
-    z = z0
-    p = p0
+    (z,p) = (z0,p0)
 
     #Initialise gradient and product
     gradz = gradlogf(z)
@@ -20,12 +19,12 @@ Rattle = function (gradlogf, z0, p0, h, L)
 
     for i in 1:L
         #Check the discriminant to ensure lambda exists
-        if (disc = graddotz + 4/h^4 - 4/h^2*sum(x -> x^2, p - h/2*gradz)) < 0
+        if (disc = graddotz^2 + 4/h^4 - 4/h^2*sum(x -> x^2, p - h/2*gradz)) < 0
             #If we cannot solve the RATTLE equations, reject move and return to initial position
-            return(z = z0, y = y0)
+            return(z = z0, p = p0)
         end
         #Initialise the Lagrange multiplier lambda
-        lambda = 2/h^2 + graddotz + sqrt(graddotz + 4/h^4 - 4/h^2*sum(x -> x^2, p - h/2*gradz))
+        lambda = 2/h^2 + graddotz - sqrt(disc)
         
         p += h/2*(gradz - lambda*z) #First "half-update" for p
 
