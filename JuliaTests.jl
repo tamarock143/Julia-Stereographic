@@ -8,27 +8,23 @@ using SpecialFunctions
 using StatsBase
 using JLD
 
-d = 20
+d = 2
 sigma = sqrt(d)I(d)
-mu = zeros(d)
-nu = 1.6
+mu = zeros(d) .+ 1e3
+nu = 2
 
 d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = sigma*rand([1,-1]) + mu
 
-f = x -> -sum(x.^2)/2
+f = x -> -(d+nu)/2*log(nu + sum(x.^2))
 
 d > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
 
 #This is here to precalculate the gradient function
 gradlogf(x0)
 
-z = SPinv(x0; sigma = sigma, mu = mu, isinv = false)
-
-p = (I(d+1) - z*z')*randn(d+1)
-
 ### SBPS Testing
 
-T = 2e6 #1269sec
+T = 1e4 #1269sec
 delta = 0.1
 Tbrent = pi/10
 Epsbrent = 0.01
