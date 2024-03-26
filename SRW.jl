@@ -2,7 +2,7 @@
 include("Stereographic Projection.jl")
 using Random
 
-#We simulate an Stereographic Projection Sampler path targeting the disribtuion exp(f)
+#We simulate an Stereographic Projection Sampler path targeting the disribtuion f
 #To more easily differentiate between SPS and SBPS, we dub this algorithm the Stereographic Random Walk algorithm
 SRWSimulator = function(logf, x0, h2, N; sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), includefirst = true)
     
@@ -39,22 +39,22 @@ SRWSimulator = function(logf, x0, h2, N; sigma = sqrt(length(x0))I(length(x0)), 
         zprime = normalize(z + dz) #New proposed point
         xprime = SP(zprime; sigma = sigma, mu = mu) #Project to Euclidean Space
 
-        #Compute acceptance probability, based on projected density
+        #Compute log-acceptance probability, based on projected density
         a = -logf(x) + d*log(1 - z[end]) + logf(xprime) - d*log(1 - zprime[end])
 
         u = log(rand(Float64)) #Simulate from uniform to accept/reject
 
         if u < a #Accept proposal
-            xout[n,:] .= xprime
-            zout[n,:] .= zprime
-            (x, z) = (xprime, zprime) #Update position in both Euclidean and Stereographic space
-            
+            #Update position in both Euclidean and Stereographic space
+            (x, z) = (xprime, zprime) 
+
             #Keep track of average acceptance probability
-            includefirst ? aout += 1/(N-1) : aout += 1/N
-        else #Reject proposal
-            xout[n,:] .= x
-            zout[n,:] .= zprime
+            aout += 1/(N - includefirst)
         end
+
+        #Add to output
+        xout[n,:] .= x
+        zout[n,:] .= z
     end
     println()
 
