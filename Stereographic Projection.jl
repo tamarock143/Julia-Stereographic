@@ -37,7 +37,8 @@ SPdensity = function(f; logdens = false)
             #Transform from sphere to Euclidean space
             x = SP(z; sigma, mu)
     
-            f(x)-(length(z)-1)log(1-z[end])
+            #Calculate density on the sphere
+            return(piz = f(x)-(length(z)-1)log(1-z[end]), x = x)
         end
     else
         #pi_S outputs f(x)* Jacobian of SP if we ask for density
@@ -45,7 +46,8 @@ SPdensity = function(f; logdens = false)
             #Transform from sphere to Euclidean space
             x = SP(z; sigma, mu)
     
-            f(x)*(1-z[end])^-(length(z)-1)
+            #Calculate density on the sphere
+            return(piz = f(x)*(1-z[end])^-(length(z)-1), x = x)
         end
     end
 
@@ -61,12 +63,10 @@ SPgradlog = function (gradlogf)
 
         #Perform the rate calculation
         #Need dimension check for d=1 case
-        d > 1 ? xgrad = gradlogf(x) : xgrad = gradlogf(x[1])
+        d > 1 ? gradx = gradlogf(x) : gradx = gradlogf(x[1])
 
         #Calculate gradient of density on sphere
-        zgrad = vcat(sigma*xgrad, d + sum((x.-mu).*xgrad))/(1-z[end])
-
-        return(zgrad)
+        return(gradz = vcat(sigma*gradx, d + sum((x.-mu).*gradx))/(1-z[end]), x = x)
     end
 end
 

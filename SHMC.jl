@@ -4,8 +4,8 @@
 include("Stereographic Projection.jl")
 using Random
 
-#RATTLE integrator for Spherical constraint: take L RATTLE steps of length h
-Rattle = function (gradlogf, z0, p0, h, L; gradz = missing)
+#RATTLE integrator for a potential u(z) and spherical constraint: take L RATTLE steps of length h
+Rattle = function (gradu, z0, p0, h, L; gradz = missing)
     #Check that norm(z) == 1 and z.p=0
     abs(sum(z0.^2) -1) >= 1e-12 && error("norm(z) != 1")
     abs(sum(z0.*p0)) >= 1e-12 && error("z.p != 0")
@@ -14,7 +14,7 @@ Rattle = function (gradlogf, z0, p0, h, L; gradz = missing)
     (z,p) = (z0,p0)
 
     #Initialise gradient and product
-    ismissing(gradz) && (gradz = gradlogf(z))
+    ismissing(gradz) && (gradz = gradu(z))
 
     for i in 1:L
         #Initialise zstep vector (obtained by solving RATTLE equations)
@@ -33,7 +33,7 @@ Rattle = function (gradlogf, z0, p0, h, L; gradz = missing)
         #Normalize z for mathematical stability
         normalize!(zprime)
 
-        gradz = gradlogf(zprime) #Update gradient
+        gradz = gradu(zprime) #Update gradient
 
         #Update velocity, then orthogonalize (again, found by solving RATTLE equations)
         p = h/2*gradz - 1/h*z
@@ -42,11 +42,11 @@ Rattle = function (gradlogf, z0, p0, h, L; gradz = missing)
         z = zprime #Fully update position
     end
 
-    return(z = z, p = p, gradz = gradz)
+    return(z = z, p = p)
 end
 
 #We simulate the Stereographic Hamiltonian MC path targeting the disribtuion f
-SHMCSimulator = function (gradlogf, x0, h, L, N; sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), includefirst = true)
+SHMCSimulator = function (logf, x0, h, L, N; gradlogf = missing, sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), includefirst = true)
     
     z = SPinv(x0; sigma = sigma, mu = mu, isinv = false) #Map to the sphere
 
@@ -69,31 +69,48 @@ SHMCSimulator = function (gradlogf, x0, h, L, N; sigma = sqrt(length(x0))I(lengt
 
     x = x0 #Position vector, initialised at x0
 
+    #Calculate log-density on the sphere
+    densz = logf(x) - d*log(1-z[end])
+
     aout = 0 #Track acceptance rate
 
-    #Set up gradient on the sphere
-    gradlogf = SPgradlog(gradlogx)
-    gradz = gradlogf(z; sigma=sigma, mu=mu)
+    #Construct gradient of logf, if not specified
+    if ismissing(gradlogf)
+        d > 1 ? gradlogf = x -> ForwardDiff.gradient(logf,x) : gradlogf = x -> ForwardDiff.derivative(logf,x)
+    end
+
+    #Set up gradient of potential on the sphere
+    gradu = SPgradlog(gradlogf)
+    gradz = gradu(z; sigma=sigma, mu=mu).gradz
     
     for n in indexes
         #Print iteration number
         print("\rStep number: $n")
 
-        #Initialise velocity
-        p = (I - z*z')randn(d+1)
+        #Initialise velocity, then orthogonalize
+        p = randn(d+1)
+        p -= sum(p .* z)*z
 
         #Take RATTLE step
-        (zprime, pprime, gradprime) = Rattle(z -> gradlogf(z; sigma=sigma, mu=mu), z, p, h, L; gradz = gradz)
+        (zprime, pprime) = Rattle(z -> gradu(z; sigma=sigma, mu=mu).gradz, z, p, h, L; gradz = gradz)
+
+        #Find projected point
+        xprime = SP(zprime; sigma, mu)
+
+        #Calculate log-density on the sphere
+        densprime = logf(xprime) - d*log(1-zprime[end])
 
         #Compute log-acceptance probability, based on Hamiltonian of the dynamics
-        a = 1/2*p'*p - gradz - 1/2*pprime'*pprime + gradprime
+        a = 1/2*p'*p - densz - 1/2*pprime'*pprime + densprime
 
         u = log(rand(Float64)) #Simulate from uniform to accept/reject
 
         if u < a #Accept proposal
             #Update position in both Euclidean and Stereographic space
-            z = zprime
-            x = SP(z; sigma=sigma, mu=mu)
+            (x,z) = (xprime,zprime)
+
+            #Update log-density
+            densz = densprime
 
             #Keep track of average acceptance probability
             aout += 1/(N - includefirst)
