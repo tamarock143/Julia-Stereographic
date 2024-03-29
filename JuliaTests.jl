@@ -26,7 +26,7 @@ gradlogf(x0)
 
 ### SHMC Testing
 
-sh = 0.5*d^(-3/4)
+sh = 1*d^(-3/4)
 sL = 5
 sN::Int64 = 1e4 
 
@@ -149,7 +149,7 @@ mean(out.z[:,end])
 ### SRW Tests
 
 h2 = 0.1*d^-1
-Nsrw::Int64 = 6e7 #1199 seconds
+Nsrw::Int64 = 3e4 #1199 seconds
 
 beta = 1.1
 burnin = 1000
@@ -161,13 +161,13 @@ r = 1e-3
 
 #@time srwout = SRWSimulator(f, x0, h2, Nsrw; sigma, mu);
 
-#p(x) = 1/sqrt(2pi)*exp(-x^2/2)
+p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
-b_range = range(-8,8, length=101)
+b_range = range(-5,5, length=101)
 
 histogram(srwout.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
-#plot!([q p], label= ["t" "N(0,1)"], lw=3)
-plot!(q, label= "t", lw=3)
+plot!([q p], label= ["t" "N(0,1)"], lw=3)
+#plot!(q, label= "t", lw=3)
 xlabel!("x")
 ylabel!("P(x)")
 
@@ -196,18 +196,18 @@ vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
 hmcdelta = 1.45d^(-1/4)
 L = 5
 d > 1 ? M = I(d) : M = 1
-N::Int64 = 4e7 #1104s
+N::Int64 = 2e4
 
 @time hmcout = HMC(f, gradlogf, x0, N, hmcdelta, L; M = M);
 hmcout.a
 #Plot comparison against the true distribution
-#p(x) = 1/sqrt(2pi)*exp(-x^2/2)
+p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
-b_range = range(-8,8, length=101)
+b_range = range(-5,5, length=101)
 
 histogram(hmcout.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
-#plot!([q p], label= ["t" "N(0,1)"], lw=3)
-plot!(q, label= "t", lw = 3)
+plot!([q p], label= ["t" "N(0,1)"], lw=3)
+#plot!(q, label= "t", lw = 3)
 xlabel!("x")
 ylabel!("P(x)")
 

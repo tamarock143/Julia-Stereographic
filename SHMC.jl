@@ -25,7 +25,7 @@ Rattle = function (gradu, z0, p0, h, L; gradz = missing)
         #Check the step doesn't push us off the sphere
         if zsteplength >1
             #If we cannot solve the RATTLE equations, reject move and return to initial position
-            return(z = z0, p = p0, gradz = gradz)
+            return(missing)
         end
 
         #Intermediate step storing the next position
@@ -93,28 +93,33 @@ SHMCSimulator = function (logf, x0, h, L, N; gradlogf = missing, sigma = sqrt(le
         p -= sum(p .* z)*z
 
         #Take RATTLE step
-        (zprime, pprime) = Rattle(z -> gradu(z; sigma=sigma, mu=mu).gradz, z, p, h, L; gradz = gradz)
+        rattleout = Rattle(z -> gradu(z; sigma=sigma, mu=mu).gradz, z, p, h, L; gradz = gradz)
 
-        #Find projected point
-        xprime = SP(zprime; sigma, mu)
+        #Sometimes we won't solve the RATTLE equations, in which case we reject
+        if !ismissing(rattleout)
+            (zprime, pprime) = rattleout
 
-        #Calculate log-density on the sphere
-        densprime = logf(xprime) - d*log(1-zprime[end])
+            #Find projected point
+            xprime = SP(zprime; sigma, mu)
 
-        #Compute log-acceptance probability, based on Hamiltonian of the dynamics
-        a = 1/2*p'*p - densz - 1/2*pprime'*pprime + densprime
+            #Calculate log-density on the sphere
+            densprime = logf(xprime) - d*log(1-zprime[end])
 
-        u = log(rand(Float64)) #Simulate from uniform to accept/reject
+            #Compute log-acceptance probability, based on Hamiltonian of the dynamics
+            a = 1/2*p'*p - densz - 1/2*pprime'*pprime + densprime
 
-        if u < a #Accept proposal
-            #Update position in both Euclidean and Stereographic space
-            (x,z) = (xprime,zprime)
+            u = log(rand(Float64)) #Simulate from uniform to accept/reject
 
-            #Update log-density
-            densz = densprime
+            if u < a #Accept proposal
+                #Update position in both Euclidean and Stereographic space
+                (x,z) = (xprime,zprime)
 
-            #Keep track of average acceptance probability
-            aout += 1/(N - includefirst)
+                #Update log-density
+                densz = densprime
+
+                #Keep track of average acceptance probability
+                aout += 1/(N - includefirst)
+            end
         end
 
         #Add to output
