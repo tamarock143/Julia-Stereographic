@@ -15,30 +15,31 @@ Rattle = function (gradlogf, z0, p0, h, L; gradz = missing)
 
     #Initialise gradient and product
     ismissing(gradz) && (gradz = gradlogf(z))
-    graddotz = sum(gradz.*z)
 
     for i in 1:L
-        #Check the discriminant to ensure lambda exists
-        if (disc = graddotz^2 + 4/h^4 - 4/h^2*sum(x -> x^2, p - h/2*gradz)) < 0
-            #If we cannot solve the RATTLE equations, reject move and return to initial position
-            return(z = z0, p = p0)
-        end
-        #Initialise the Lagrange multiplier lambda
-        lambda = 2/h^2 + graddotz - sqrt(disc)
+        #Initialise zstep vector (obtained by solving RATTLE equations)
+        zstep = h*(p + h/2*(gradz - sum(gradz .* z)*z))
+        zsteplength = sum(zstep.^2)
         
-        p += h/2*(gradz - lambda*z) #First "half-update" for p
+        #Check the step doesn't push us off the sphere
+        if zsteplength >1
+            #If we cannot solve the RATTLE equations, reject move and return to initial position
+            return(z = z0, p = p0, gradz = gradz)
+        end
 
-        z += h*p #Update z
-
+        #Intermediate step storing the next position
+        zprime = sqrt(1 - zsteplength)*z + zstep
+        
         #Normalize z for mathematical stability
-        normalize!(z)
+        normalize!(zprime)
 
-        #Update gradient and product
-        gradz = gradlogf(z)
-        graddotz = sum(gradz.*z)
+        gradz = gradlogf(zprime) #Update gradient
 
-        #Second "half-update" for p
-        p = vec((I - z*z')*(p + h/2*gradz))
+        #Update velocity, then orthogonalize (again, found by solving RATTLE equations)
+        p = h/2*gradz - 1/h*z
+        p -= sum(p .* zprime)*zprime
+
+        z = zprime #Fully update position
     end
 
     return(z = z, p = p, gradz = gradz)

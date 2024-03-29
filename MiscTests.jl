@@ -32,8 +32,15 @@ p0 = (I - z0*z0')randn(d+1)
 
 gradlogf = SPgradlog(gradlogx)
 
-h = 0.1*d^(-3/4)
-T = 0.2
+h = 1*d^(-3/4)
+T = 0.5
+
+(z1,p1) = Rattle(z -> gradlogf(z; sigma=sigma, mu=mu), z0, p0, h, 1)
+(z2, p2) = Rattle(z -> gradlogf(z; sigma=sigma, mu=mu), z1, -p1, h, 1)
+
+sum(x -> x^2, z0 - z2)
+sum(x -> x^2, p0 + p2)
+
 L = floor(Int64, T/h)
 
 ratpathz = Array{Float64}(undef, L, d+1)
