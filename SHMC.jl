@@ -3,6 +3,7 @@
 #Import Stereographic Projection stuff, and the Random library
 include("Stereographic Projection.jl")
 using Random
+using ForwardDiff
 
 #RATTLE integrator for a potential u(z) and spherical constraint: take L RATTLE steps of length h
 Rattle = function (gradu, z0, p0, h, L; gradz = missing)
@@ -42,7 +43,7 @@ Rattle = function (gradu, z0, p0, h, L; gradz = missing)
         z = zprime #Fully update position
     end
 
-    return(z = z, p = p)
+    return(z = vec(z), p = vec(p))
 end
 
 #We simulate the Stereographic Hamiltonian MC path targeting the disribtuion f

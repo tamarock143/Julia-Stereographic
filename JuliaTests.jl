@@ -1,28 +1,62 @@
 include("Adaptive SBPS.jl")
 include("Hamiltonian MC.jl")
 include("Adaptive SRW.jl")
+include("SHMC.jl")
 
-using ForwardDiff
 using Plots
 using SpecialFunctions
 using StatsBase
 using JLD
 
-d = 200
+d = 10
 sigma = sqrt(d)I(d)
 mu = zeros(d)
-mu[1] += 1e3
 
-nu = 200
+nu = 1.6
 
-d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = sigma*rand([1,-1]) + mu
+d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]) + mu)[1]
 
-f = x -> -(d+nu)/2*log(nu + sum(x.^2))
+f = x -> -sum(x.^2)/2
 
 d > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
 
 #This is here to precalculate the gradient function
 gradlogf(x0)
+
+
+### SHMC Testing
+
+sh = 0.5*d^(-3/4)
+sL = 5
+sN::Int64 = 1e4 
+
+@time shmcout = SHMCSimulator(f, x0, sh, sL, sN; gradlogf, sigma, mu, includefirst = true);
+
+p(x) = 1/sqrt(2pi)*exp(-x^2/2)
+q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
+b_range = range(-5,5, length=101)
+
+histogram(shmcout.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
+plot!([q p], label= ["t" "N(0,1)"], lw=3)
+#plot!(q, label= "t", lw=3)
+xlabel!("x")
+ylabel!("P(x)")
+
+plot(shmcout.x[:,1])
+#vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
+
+#plot(shmcout.x[:,1],shmcout.x[:,2])
+
+shmcxnorms = vec(sum(shmcout.x .^2, dims=2))
+#plot(sqrt.(shmcxnorms), label = "||x||")
+maximum(srwxnorms)
+
+plot(shmcout.z[:,end])
+#vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
+
+
+
+
 
 ### SBPS Testing
 
@@ -124,8 +158,6 @@ R = 1e9
 r = 1e-3
 
 @time srwout = SRWAdaptive(f, x0, h2, Nsrw, beta, r, R; sigma, mu, burnin, adaptlength);
-
-#@time srwout = SRWSimulator(f, x0, h2, Nsrw; sigma, mu);
 
 #@time srwout = SRWSimulator(f, x0, h2, Nsrw; sigma, mu);
 
