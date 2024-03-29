@@ -8,10 +8,12 @@ using SpecialFunctions
 using StatsBase
 using JLD
 
-d = 2
+d = 200
 sigma = sqrt(d)I(d)
-mu = zeros(d) .+ 1e3
-nu = 2
+mu = zeros(d)
+mu[1] += 1e3
+
+nu = 200
 
 d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = sigma*rand([1,-1]) + mu
 
