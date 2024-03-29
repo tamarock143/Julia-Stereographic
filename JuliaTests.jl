@@ -8,7 +8,7 @@ using SpecialFunctions
 using StatsBase
 using JLD
 
-d = 10
+d = 200
 sigma = sqrt(d)I(d)
 mu = zeros(d)
 
