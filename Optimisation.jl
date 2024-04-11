@@ -74,30 +74,43 @@ end
 
 Brent = function (f,a,b,tol)
     #Start by performing a Binary search, by looking at the midpoint of the interval
-    #If we find the minimum to be at an endpoint, we refine the search
-    looking = true
+    #We do this because GoldenSearch and ParaSearch both require an interval with a minimum in it
     fa = f(a)
     fb = f(b)
 
-    (x,fx) = [undef,undef]
+    #If the interval is tiny, we're done
+    b-a <= tol && return (a,fa)
 
-    while looking && b-a > tol
-        x = (b+a)/2
+    #Initialise midpoint
+    x = (b+a)/2
+    fx = f(x)
+
+    #If there is a minimum in the middle, we're good to go for optimisation
+    if fa > fx < fb
+        
+        #If the minimum is at an endpoint, focus search to be near that endpoint
+    elseif fa < fb
+        (b,fb) = (x,fx)
+
+        #Test for a decrease towards (a,fa) from above
+        x = a + tol
         fx = f(x)
 
-        #If the minimum is at an endpoint, focus search to be near that endpoint
-        if fa > fx < fb
-            looking = false
-        elseif fa < fb
-            (b,fb) = (x,fx)
-        else
-            (a,fa) = (x,fx)
-        end
-    end
+        #If fa is the minimum, we're now within the tolerance window
+        fx >= fa && return (a,fa)
+        
+        #Otherwise, we now have fb > fa > fx and are good to go
+    else
+        (a,fa) = (x,fx)
 
-    #If the Binary search chose an endpoint as the min, return that endpoint
-    if looking
-        return sort([(a,fa),(b,fb)], by = x -> x[2])[1]
+        #Test for a decrease towards (b,fb) from below
+        x = b - tol
+        fx = f(x)
+
+        #If fb is the minimum, we're now within the tolerance window
+        fx >= fb && return (b,fb)
+        
+        #Otherwise, we now have fb > fa > fx and are good to go
     end
 
     #Initialise alternations between GoldenSearch and ParaSearch. These variables are required for bookkeeping

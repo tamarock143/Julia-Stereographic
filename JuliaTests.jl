@@ -60,7 +60,7 @@ plot(shmcout.z[:,end])
 
 ### SBPS Testing
 
-T = 1e4 #1269sec
+T = 1e2 #1269sec
 delta = 0.1
 Tbrent = pi/10
 Epsbrent = 0.01
