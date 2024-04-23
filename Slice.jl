@@ -3,7 +3,7 @@ include("Stereographic Projection.jl")
 using Random
 
 #We simulate a Stereographic Slice Sampler path targeting the disribtuion f
-SSSSimulator = function(logf, x0, N; sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), includefirst = true)
+SliceSimulator = function(logf, x0, N; sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), includefirst = true)
     
     z = SPinv(x0; sigma = sigma, mu = mu, isinv = false) #Map to the sphere
 
@@ -62,6 +62,8 @@ SSSSimulator = function(logf, x0, N; sigma = sqrt(length(x0))I(length(x0)), mu =
             xprime = SP(zprime; sigma = sigma, mu = mu) #Project to Euclidean Space
 
             fxprime = logf(xprime) #Density at xprime
+
+            k += 1 #Increment number of steps
         end
 
         #If we hit the step threshold, reject the output
