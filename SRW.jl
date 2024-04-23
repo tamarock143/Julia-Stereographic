@@ -27,6 +27,8 @@ SRWSimulator = function(logf, x0, h2, N; sigma = sqrt(length(x0))I(length(x0)), 
 
     x = x0 #Position vector, initialised at x0
 
+    fx = logf(x) #Precalculate density at position
+
     aout = 0 # Track acceptance rate
     
     for n in indexes
@@ -39,14 +41,16 @@ SRWSimulator = function(logf, x0, h2, N; sigma = sqrt(length(x0))I(length(x0)), 
         zprime = normalize(z + dz) #New proposed point
         xprime = SP(zprime; sigma = sigma, mu = mu) #Project to Euclidean Space
 
+        fxprime = logf(xprime) #Density at xprime
+
         #Compute log-acceptance probability, based on projected density
-        a = -logf(x) + d*log(1 - z[end]) + logf(xprime) - d*log(1 - zprime[end])
+        a = -fx + d*log(1 - z[end]) + fxprime - d*log(1 - zprime[end])
 
         u = log(rand(Float64)) #Simulate from uniform to accept/reject
 
         if u < a #Accept proposal
             #Update position in both Euclidean and Stereographic space
-            (x, z) = (xprime, zprime) 
+            (x, z, fx) = (xprime, zprime, fxprime) 
 
             #Keep track of average acceptance probability
             aout += 1/(N - includefirst)

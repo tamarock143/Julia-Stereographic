@@ -10,55 +10,24 @@ using SpecialFunctions
 using StatsBase
 using JLD
 
+N::Int64 = 10000
 
-d = 100
-sigma = sqrt(d)I(d)
-mu = zeros(d)
-nu = 100
+@time out = SSSSimulator(f, x0, N; sigma, mu);
 
-d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]) + mu)[1,1]
+#Plot comparison against the true distribution
+p(x) = 1/sqrt(2pi)*exp(-x^2/2)
+#q(x) = 1/sqrt(2pi*sigmaf)*exp(-x^2/2sigmaf)
+#q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
+b_range = range(-5,5, length=101)
 
-f = x -> -sum(x.^2)/2
+histogram(out.x[:,100], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
+plot!(p, label= "N(0,1)", lw=3)
+#plot!(q, label= "t", lw=3)
+xlabel!("x")
+ylabel!("P(x)")
 
-d > 1 ? gradlogx = x -> ForwardDiff.gradient(f,x) : gradlogx = x -> ForwardDiff.derivative(f,x)
+plot(out.x[:,1], label = "x1")
 
-#This is here to precalculate the gradient function
-gradlogx(x0)
+plot(out.z[:,end], label = "z_{d+1}")
 
-
-
-z0 = SPinv(x0; sigma = sigma, mu = mu)
-p0 = (I - z0*z0')randn(d+1)
-
-gradlogf = SPgradlog(gradlogx)
-
-h = 1*d^(-3/4)
-T = 0.5
-
-(z1,p1) = Rattle(z -> gradlogf(z; sigma=sigma, mu=mu), z0, p0, h, 1)
-(z2, p2) = Rattle(z -> gradlogf(z; sigma=sigma, mu=mu), z1, -p1, h, 1)
-
-sum(x -> x^2, z0 - z2)
-sum(x -> x^2, p0 + p2)
-
-L = floor(Int64, T/h)
-
-ratpathz = Array{Float64}(undef, L, d+1)
-ratpathp = Array{Float64}(undef, L, d+1)
-
-ratpathx = Array{Float64}(undef, L, d)
-
-ratpathz[1,:] = z0; ratpathp[1,:] = p0
-ratpathx[1,:] = SP(z0; sigma=sigma, mu=mu)
-
-(z,p) = (z0,p0)
-
-for i in 2:L
-    (z,p) = Rattle(z -> gradlogf(z; sigma=sigma, mu=mu), z, p, h, 1)
-
-    ratpathz[i,:] = z; ratpathp[i,:] = p
-    ratpathx[i,:] = SP(z; sigma=sigma, mu=mu)
-end
-
-plot(ratpathz[:,1], ratpathz[:,2])
-plot(ratpathx[:,1], ratpathx[:,2])
+plot(out.x[:,1],out.x[:,2]) 
