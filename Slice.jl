@@ -12,6 +12,8 @@ SliceSimulator = function(logf, x0, N; sigma = sqrt(length(x0))I(length(x0)), mu
     #Prepare output
     xout = zeros(N,d)
     zout = zeros(N,d+1)
+    thetaout = zeros(N+includefirst)
+    vout = zeros(N+includefirst,d+1)
 
     #Slightly convoluted method for not storing the initial value WITHOUT allocating memory for an entirely new matrix
     if includefirst
@@ -35,6 +37,7 @@ SliceSimulator = function(logf, x0, N; sigma = sqrt(length(x0))I(length(x0)), mu
         t = log(rand()) + fx - d*log(1 - z[end]) #Sample the (log)height of the level set
 
         v = SBPSRefresh(z) #Sample velocity to determine which geodesic we are following
+        vout[n-includefirst,:] .= v
 
         theta = 2pi*rand() #Sample initial angle around the geodesic
 
@@ -42,7 +45,7 @@ SliceSimulator = function(logf, x0, N; sigma = sqrt(length(x0))I(length(x0)), mu
         thetamin = theta - 2pi
         thetamax = theta
 
-        zprime = z*cos(theta) + v*sin(theta) #New proposed point
+        zprime = normalize(z*cos(theta) + v*sin(theta)) #New proposed point
         xprime = SP(zprime; sigma = sigma, mu = mu) #Project to Euclidean Space
 
         fxprime = logf(xprime) #Density at xprime
@@ -58,7 +61,7 @@ SliceSimulator = function(logf, x0, N; sigma = sqrt(length(x0))I(length(x0)), mu
             #Resample position to be uniform inside the new interval
             theta = (thetamax - thetamin)rand() + thetamin
 
-            zprime = z*cos(theta) + v*sin(theta) #New proposed point
+            zprime = normalize(z*cos(theta) + v*sin(theta)) #New proposed point
             xprime = SP(zprime; sigma = sigma, mu = mu) #Project to Euclidean Space
 
             fxprime = logf(xprime) #Density at xprime
@@ -73,8 +76,9 @@ SliceSimulator = function(logf, x0, N; sigma = sqrt(length(x0))I(length(x0)), mu
         #Add to output
         xout[n,:] .= x
         zout[n,:] .= z
+        thetaout[n-includefirst] = theta
     end
     println()
 
-    return (x = xout, z = zout)
+    return (x = xout, z = zout, theta = thetaout, v = vout)
 end

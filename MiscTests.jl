@@ -11,11 +11,11 @@ using SpecialFunctions
 using StatsBase
 using JLD
 
-d = 50
+d = 2
 sigma = sqrt(d)I(d)
-mu = zeros(d) .+ 1e6
+mu = zeros(d) .+1e8
 
-nu = 1
+nu = 2
 
 d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]) + mu)[1]
 
@@ -26,11 +26,11 @@ d > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.
 #This is here to precalculate the gradient function
 gradlogf(x0)
 
-Nslice::Int64 = 1e6
+Nslice::Int64 = 2e5
 
 beta = 1.1
-burnin = 5000
-adaptlength = 5000
+burnin = 10000
+adaptlength = 10000
 R = 1e9
 r = 1e-3
 
@@ -49,6 +49,8 @@ plot!(p, label= "N(0,1)", lw=3)
 plot!(q, label= "t", lw=3)
 xlabel!("x")
 ylabel!("P(x)")
+
+findfirst(sliceout.x .== NaN)
 
 plot(sliceout.x[:,1], label = "x1")
 vline!(cumsum(sliceout.times[1:end-1]), label = "Adaptations", lw = 0.5)
