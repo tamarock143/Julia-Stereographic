@@ -11,10 +11,11 @@ using StatsBase
 using JLD
 
 d = 2
+d = 2
 sigma = sqrt(d)I(d)
-mu = zeros(d) .+ 1e6
+mu = zeros(d) .+1e8
 
-nu = 1
+nu = 2
 
 d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]) + mu)[1]
 
@@ -43,6 +44,8 @@ plot!(p, label= "N(0,1)", lw=3)
 plot!(q, label= "t", lw=3)
 xlabel!("x")
 ylabel!("P(x)")
+
+findfirst(sliceout.x .== NaN)
 
 plot(sliceout.x[:,1], label = "x1")
 vline!(cumsum(sliceout.times[1:end-1]), label = "Adaptations", lw = 0.5)

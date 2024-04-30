@@ -8,7 +8,7 @@ using SpecialFunctions
 using StatsBase
 using JLD
 
-d = 200
+d = 2
 sigma = sqrt(d)I(d)
 mu = zeros(d)
 
@@ -16,7 +16,7 @@ nu = 1.6
 
 d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]) + mu)[1]
 
-f = x -> -sum(x.^2)/2
+f = x -> -(nu + d)/2*log(nu+sum(x.^2))
 
 d > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
 
@@ -60,7 +60,7 @@ plot(shmcout.z[:,end])
 
 ### SBPS Testing
 
-T = 1e2 #1269sec
+T = 2.2e6 #~1000sec
 delta = 0.1
 Tbrent = pi/10
 Epsbrent = 0.01
@@ -148,16 +148,16 @@ mean(out.z[:,end])
 
 ### SRW Tests
 
-h2 = 0.1*d^-1
-Nsrw::Int64 = 3e4 #1199 seconds
+h2 = 20*d^-1
+Nsrw::Int64 = 2.4e7 #~1000 seconds
 
 beta = 1.1
-burnin = 1000
-adaptlength = 1000
+burninsrw = 1000
+adaptlengthsrw = 1000
 R = 1e9
 r = 1e-3
 
-@time srwout = SRWAdaptive(f, x0, h2, Nsrw, beta, r, R; sigma, mu, burnin, adaptlength);
+@time srwout = SRWAdaptive(f, x0, h2, Nsrw, beta, r, R; sigma, mu,burnin = burninsrw, adaptlength = adaptlengthsrw);
 
 #@time srwout = SRWSimulator(f, x0, h2, Nsrw; sigma, mu);
 
@@ -196,7 +196,7 @@ vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
 hmcdelta = 1.45d^(-1/4)
 L = 5
 d > 1 ? M = I(d) : M = 1
-N::Int64 = 2e4
+N::Int64 = 1.8e7 #~1000sec
 
 @time hmcout = HMC(f, gradlogf, x0, N, hmcdelta, L; M = M);
 hmcout.a
@@ -223,11 +223,6 @@ maximum(hmcxnorms)
 
 Z(a) = beta_inc(d/2,nu/2,d*a/(d*a+nu))[2]
 
-plot(10 .^(-2:0.1:11), a -> log(abs(sum(xnorms/d .>= a)/length(xnorms) - Z(a))/Z(a)), label = "SBPS")
-plot!(xscale=:log10, minorgrid=true)
-plot!(10 .^(-2:0.1:11), a -> log(abs(sum(hmcxnorms/d .>= a)/length(hmcxnorms) - Z(a))/Z(a)), label = "HMC")
-title!("Absolute Relative Error for CCDF of norm of a t-distribution\nwith d = 2,  ν = 1.6 (Runtime of ~1000 seconds)", titlefontsize = 10)
-
 
 #mySBPStest = function ()
     @time out = SBPSAdaptive(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Epsbrent, tol, sigma, mu, burnin, adaptlength);
@@ -238,10 +233,10 @@ title!("Absolute Relative Error for CCDF of norm of a t-distribution\nwith d = 2
 #end
 
 #mySRWtest = function ()
-    @time out = SRWAdaptive(f, x0, h2, Nsrw, beta, r, R; sigma, mu, burnin, adaptlength);
+    @time srwout = SRWAdaptive(f, x0, h2, Nsrw, beta, r, R; sigma, mu, burnin = burninsrw, adaptlength = adaptlengthsrw);
 
     save("srw.jld", "SRW", out)
-    srwxnorms = vec(sum(out.x.^2, dims=2))
+    srwxnorms = vec(sum(srwout.x.^2, dims=2))
     save("srwxnorms.jld", "srwxnorms", srwxnorms)
 #end
 
