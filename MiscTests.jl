@@ -5,13 +5,12 @@ include("Adaptive SRW.jl")
 include("SHMC.jl")
 include("Adaptive Slice.jl")
 
-using ForwardDiff
 using Plots
 using SpecialFunctions
 using StatsBase
 using JLD
 
-d = 50
+d = 2
 sigma = sqrt(d)I(d)
 mu = zeros(d) .+ 1e6
 
@@ -19,18 +18,13 @@ nu = 1
 
 d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]) + mu)[1]
 
-f = x -> -(d+nu)/2*log(nu+sum(x.^2))
+f = x -> -(nu+d)/2*log(nu+sum(x.^2))
 
-d > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
-
-#This is here to precalculate the gradient function
-gradlogf(x0)
-
-Nslice::Int64 = 1e6
+Nslice::Int64 = 1e4
 
 beta = 1.1
-burnin = 5000
-adaptlength = 5000
+burnin = 500
+adaptlength = 500
 R = 1e9
 r = 1e-3
 
@@ -42,7 +36,7 @@ r = 1e-3
 p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 #q(x) = 1/sqrt(2pi*sigmaf)*exp(-x^2/2sigmaf)
 q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
-b_range = range(-8,8, length=101)
+b_range = range(-5,5, length=101)
 
 histogram(sliceout.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
 plot!(p, label= "N(0,1)", lw=3)
