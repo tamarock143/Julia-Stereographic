@@ -23,12 +23,12 @@ f = x -> -sum(x.^2)/2
 Nslice::Int64 = 1e5
 
 beta = 1.1
-burnin = 500
-adaptlength = 500
+burninslice = 500
+adaptlengthslice = 500
 R = 1e9
 r = 1e-3
 
-@time sliceout = SliceAdaptive(f, x0, Nslice, beta, r, R; sigma, mu, burnin, adaptlength);
+@time sliceout = SliceAdaptive(f, x0, Nslice, beta, r, R; sigma, mu, burninslice, adaptlengthslice);
 
 #@time sliceout = SliceSimulator(f, x0, Nslice; sigma, mu);
 

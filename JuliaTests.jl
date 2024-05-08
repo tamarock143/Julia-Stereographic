@@ -2,6 +2,7 @@ include("Adaptive SBPS.jl")
 include("Hamiltonian MC.jl")
 include("Adaptive SRW.jl")
 include("SHMC.jl")
+include("Adaptive Slice.jl")
 
 using Plots
 using SpecialFunctions
@@ -12,7 +13,7 @@ d = 2
 sigma = sqrt(d)I(d)
 mu = zeros(d)
 
-nu = 1.6
+nu = 2
 
 d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]) + mu)[1]
 
@@ -22,40 +23,6 @@ d > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.
 
 #This is here to precalculate the gradient function
 gradlogf(x0)
-
-
-### SHMC Testing
-
-sh = 1*d^(-3/4)
-sL = 5
-sN::Int64 = 1e4 
-
-@time shmcout = SHMCSimulator(f, x0, sh, sL, sN; gradlogf, sigma, mu, includefirst = true);
-
-p(x) = 1/sqrt(2pi)*exp(-x^2/2)
-q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
-b_range = range(-5,5, length=101)
-
-histogram(shmcout.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
-plot!([q p], label= ["t" "N(0,1)"], lw=3)
-#plot!(q, label= "t", lw=3)
-xlabel!("x")
-ylabel!("P(x)")
-
-plot(shmcout.x[:,1])
-#vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
-
-#plot(shmcout.x[:,1],shmcout.x[:,2])
-
-shmcxnorms = vec(sum(shmcout.x .^2, dims=2))
-#plot(sqrt.(shmcxnorms), label = "||x||")
-maximum(srwxnorms)
-
-plot(shmcout.z[:,end])
-#vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
-
-
-
 
 
 ### SBPS Testing
@@ -145,6 +112,38 @@ mean(out.z[:,end])
 #savefig("tAdaptationsLatitude.pdf")
 
 
+### SSS Tests
+
+Nslice::Int64 = 2.5e7
+
+beta = 1.1
+burninslice = 1000
+adaptlengthslice = 1000
+R = 1e9
+r = 1e-3
+
+@time sliceout = SliceAdaptive(f, x0, Nslice, beta, r, R; sigma, mu, burnin = burninslice, adaptlength = adaptlengthslice);
+
+#@time sliceout = SliceSimulator(f, x0, Nslice; sigma, mu);
+
+#Plot comparison against the true distribution
+#p(x) = 1/sqrt(2pi)*exp(-x^2/2)
+#q(x) = 1/sqrt(2pi*sigmaf)*exp(-x^2/2sigmaf)
+q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
+b_range = range(-8,8, length=101)
+
+histogram(sliceout.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
+#plot!(p, label= "N(0,1)", lw=3)
+plot!(q, label= "t", lw=3)
+xlabel!("x")
+ylabel!("P(x)")
+
+plot(sliceout.x[:,1], label = "x1")
+vline!(cumsum(sliceout.times[1:end-1]), label = "Adaptations", lw = 0.5)
+
+plot(sliceout.z[:,end], label = "z_{d+1}")
+vline!(cumsum(sliceout.times[1:end-1]), label = "Adaptations", lw = 0.5)
+
 
 ### SRW Tests
 
@@ -161,13 +160,13 @@ r = 1e-3
 
 #@time srwout = SRWSimulator(f, x0, h2, Nsrw; sigma, mu);
 
-p(x) = 1/sqrt(2pi)*exp(-x^2/2)
+#p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
-b_range = range(-5,5, length=101)
+b_range = range(-8,8, length=101)
 
 histogram(srwout.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
-plot!([q p], label= ["t" "N(0,1)"], lw=3)
-#plot!(q, label= "t", lw=3)
+#plot!([q p], label= ["t" "N(0,1)"], lw=3)
+plot!(q, label= "t", lw=3)
 xlabel!("x")
 ylabel!("P(x)")
 
@@ -179,15 +178,6 @@ vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
 srwxnorms = vec(sum(srwout.x .^2, dims=2))
 #plot(sqrt.(srwxnorms), label = "||x||")
 maximum(srwxnorms)
-
-Z(a) = beta_inc(d/2,nu/2,d*a/(d*a+nu))[2]
-
-plot(10 .^(-2:0.1:11), a -> log(abs(sum(srwxnorms/d .>= a)/length(srwxnorms) - Z(a))/Z(a)), label = "SRW")
-plot!(xscale=:log10, minorgrid=true)
-
-plot(srwout.z[:,end])
-vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
-
 
 
 
@@ -201,13 +191,13 @@ N::Int64 = 1.8e7 #~1000sec
 @time hmcout = HMC(f, gradlogf, x0, N, hmcdelta, L; M = M);
 hmcout.a
 #Plot comparison against the true distribution
-p(x) = 1/sqrt(2pi)*exp(-x^2/2)
+#p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
-b_range = range(-5,5, length=101)
+b_range = range(-8,8, length=101)
 
 histogram(hmcout.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
-plot!([q p], label= ["t" "N(0,1)"], lw=3)
-#plot!(q, label= "t", lw = 3)
+#plot!([q p], label= ["t" "N(0,1)"], lw=3)
+plot!(q, label= "t", lw = 3)
 xlabel!("x")
 ylabel!("P(x)")
 
@@ -248,14 +238,23 @@ Z(a) = beta_inc(d/2,nu/2,d*a/(d*a+nu))[2]
     save("hmcxnorms.jld", "hmcxnorms", hmcxnorms)
 #end
 
-p = plot(10 .^(-2:0.1:11), a -> abs(sum(xnorms .>= d*a)/length(xnorms) - Z(a))/Z(a), label = "SBPS")
-plot!(p, xscale=:log10, yscale=:log10, minorgrid=true)
-plot!(p, 10 .^(-2:0.1:11), a -> abs(sum(srwxnorms .>= d*a)/Nsrw - Z(a))/Z(a), label = "SRW")
-plot!(10 .^(-2:0.1:11), a -> abs(sum(hmcxnorms/d .>= a)/N - Z(a))/Z(a), label = "HMC")
-plot!(p, legend=:bottomright)
-title!(p, "Log Absolute Relative Error for CCDF of norm of a t-distribution\nwith d = 2,  ν = 1.6 (Runtime of ~2400 seconds)", titlefontsize = 10)
+#mySSStest = function ()
+    @time sliceout = SliceAdaptive(f, x0, Nslice, beta, r, R; sigma, mu, burnin = burninslice, adaptlength = adaptlengthslice);
 
-savefig("tNormDistComparisonSRW.pdf")
+    save("slice.jld", "Slice", sliceout)
+    slicexnorms = vec(sum(sliceout.x .^2, dims=2))
+    save("slicexnorms.jld", "slicexnorms", slicexnorms)
+#end
+
+p = plot(10 .^(-2:0.1:9), a -> abs(sum(xnorms/d .>= a)/length(xnorms) - Z(a))/Z(a), label = "SBPS")
+plot!(p, xscale=:log10, yscale=:log10, minorgrid=true)
+plot!(p, 10 .^(-2:0.1:9), a -> abs(sum(srwxnorms/d .>= a)/length(srwxnorms) - Z(a))/Z(a), label = "SRW")
+plot!(p, 10 .^(-2:0.1:9), a -> abs(sum(hmcxnorms/d .>= a)/length(hmcxnorms) - Z(a))/Z(a), label = "HMC")
+plot!(p, 10 .^(-2:0.1:9), a -> abs(sum(slicexnorms/d .>= a)/length(slicexnorms) - Z(a))/Z(a), label = "Slice")
+plot!(p, legend=:bottomright)
+title!(p, "Log Absolute Relative Error for CCDF of norm of a t-distribution\nwith d = 2,  ν = 2 (Runtime of ~1000 seconds)", titlefontsize = 10)
+
+savefig("tNormDistComparisonSSS.pdf")
 
 
 out = load("sbps.jld")["SBPS"]
@@ -265,12 +264,13 @@ xnorms = load("xnorms.jld")["xnorms"]
 hmcxnorms = load("hmcxnorms.jld")["hmcxnorms"]
 
 srwxnorms = load("srwxnorms.jld")["srwxnorms"]
+slicexnorms = load("slicexnorms.jld")["slicexnorms"]
 
 p = plot()
 x = range(-1,1,length=1001)[2:end-1]
 
-for d in [1,2,5,10,50,100]
-    stephist!(p,collect(x), weights= map(x -> exp(-0.1d/(1-x))*(1-x)^(-d)*(1-x^2)^(d/2),x),
+for d in [1,2,5,10,50,100,200]
+    stephist!(p,collect(x), weights= map(x -> exp(-d/(1-x) -d*log(1-x) +d/2*log(1-x^2)),x),
      bins=x,normalize=:pdf,label="d=$d",lwd=3)
 end
 p
