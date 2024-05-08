@@ -35,8 +35,8 @@ tol = 1e-6
 lambda = 1
 
 beta = 1.1
-burnin = 50
-adaptlength = 50
+burnin = T/200
+adaptlength = T/200
 R = 1e9
 r = 1e-3
 
@@ -90,20 +90,6 @@ gif(myanim, "SBPS.gif")
 
 #plot(out.x[:,1],out.x[:,2])
 
-xnorms = vec(sum(out.x.^2, dims=2))
-plot(0:delta:T,sqrt.(xnorms), label = "||x||")
-vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
-
-#Comparison of norms with F-distribution
-a = 1e5
-b = 1e6
-norms_range = range(a,b, length = 101)
-histogram(xnorms/d, label="||x||", bins=norms_range, normalize=:pdf, color=:gray)
-p(x) = 1/beta(d/2,nu/2)*(d/nu)^(d/2)*x^(d/2 - 1)*(1+d/nu*x)^(-(d+nu)/2)
-plot!(norms_range, x -> p(x)/(beta_inc(d/2,nu/2,d*b/(d*b+nu))[1] -beta_inc(d/2,nu/2,d*a/(d*a+nu))[1]), label = "F", lw = 3)
-
-plot(autocor(xnorms))
-
 plot(0:delta:T,out.z[:,end], label = "z_{d+1}")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
 
@@ -114,11 +100,11 @@ mean(out.z[:,end])
 
 ### SSS Tests
 
-Nslice::Int64 = 2.5e7
+Nslice::Int64 = 2.5e7 #~1000sec
 
 beta = 1.1
-burninslice = 1000
-adaptlengthslice = 1000
+burninslice = Nslice/200
+adaptlengthslice = Nslice/200
 R = 1e9
 r = 1e-3
 
@@ -144,6 +130,15 @@ vline!(cumsum(sliceout.times[1:end-1]), label = "Adaptations", lw = 0.5)
 plot(sliceout.z[:,end], label = "z_{d+1}")
 vline!(cumsum(sliceout.times[1:end-1]), label = "Adaptations", lw = 0.5)
 
+#map(x -> sum(x -> x^2, x), eachrow(sliceout.mu))
+#plot(log.(map(x -> sum(x -> x^2, eigen(x - sqrt(d)I(d)).values), sliceout.sigma)))
+
+plot(autocor(sliceout.x[:,1].^2))
+
+cov(sliceout.x[floor(Int64,2/3*10^5):end,:])
+
+
+
 
 ### SRW Tests
 
@@ -151,8 +146,8 @@ h2 = 20*d^-1
 Nsrw::Int64 = 2.4e7 #~1000 seconds
 
 beta = 1.1
-burninsrw = 1000
-adaptlengthsrw = 1000
+burninsrw = Nsrw/200
+adaptlengthsrw = Nsrw/200
 R = 1e9
 r = 1e-3
 
@@ -201,7 +196,7 @@ plot!(q, label= "t", lw = 3)
 xlabel!("x")
 ylabel!("P(x)")
 
-#plot(hmcout.x[collect(Int64,1:1e0:N),1], label = "x")
+plot(hmcout.x[:,1], label = "x")
 
 #plot(hmcout.x[:,1],hmcout.x[:,2])
 
@@ -209,42 +204,49 @@ hmcxnorms = vec(sum(hmcout.x .^2, dims=2))
 #plot(sqrt.(hmcxnorms), label = "||x||")
 maximum(hmcxnorms)
 
+
+
+
 ### Misc Tests
 
+#P(|T| > a) for T ~ t_nu in d dimensions
 Z(a) = beta_inc(d/2,nu/2,d*a/(d*a+nu))[2]
 
-
-#mySBPStest = function ()
+#Output norms of SBPS process
+mySBPStest = function ()
     @time out = SBPSAdaptive(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Epsbrent, tol, sigma, mu, burnin, adaptlength);
 
-    save("sbps.jld", "SBPS", out)
     xnorms = vec(sum(out.x.^2, dims=2))
-    save("xnorms.jld", "xnorms", xnorms)
-#end
 
-#mySRWtest = function ()
+    return(xnorms)
+end
+
+#Output norms of SRW process
+mySRWtest = function ()
     @time srwout = SRWAdaptive(f, x0, h2, Nsrw, beta, r, R; sigma, mu, burnin = burninsrw, adaptlength = adaptlengthsrw);
 
-    save("srw.jld", "SRW", out)
     srwxnorms = vec(sum(srwout.x.^2, dims=2))
-    save("srwxnorms.jld", "srwxnorms", srwxnorms)
-#end
+    
+    return(srwxnorms)
+end
 
-#myHMCtest = function ()
+#Output norms of HMC process
+myHMCtest = function ()
     @time hmcout = HMC(f, gradlogf, x0, N, hmcdelta, L; M = M)
 
-    save("hmc.jld", "HMC", hmcout)
     hmcxnorms = vec(sum(hmcout.x .^2, dims=2))
-    save("hmcxnorms.jld", "hmcxnorms", hmcxnorms)
-#end
+    
+    return(hmcxnorms)
+end
 
-#mySSStest = function ()
+#Output norms of SSS process
+mySSStest = function ()
     @time sliceout = SliceAdaptive(f, x0, Nslice, beta, r, R; sigma, mu, burnin = burninslice, adaptlength = adaptlengthslice);
 
-    save("slice.jld", "Slice", sliceout)
     slicexnorms = vec(sum(sliceout.x .^2, dims=2))
-    save("slicexnorms.jld", "slicexnorms", slicexnorms)
-#end
+    
+    return(slicexnorms)
+end
 
 p = plot(10 .^(-2:0.1:9), a -> abs(sum(xnorms/d .>= a)/length(xnorms) - Z(a))/Z(a), label = "SBPS")
 plot!(p, xscale=:log10, yscale=:log10, minorgrid=true)
@@ -267,10 +269,10 @@ srwxnorms = load("srwxnorms.jld")["srwxnorms"]
 slicexnorms = load("slicexnorms.jld")["slicexnorms"]
 
 p = plot()
-x = range(-1,1,length=1001)[2:end-1]
+z = range(-1,1,length=1001)[2:end-1]
 
 for d in [1,2,5,10,50,100,200]
-    stephist!(p,collect(x), weights= map(x -> exp(-d/(1-x) -d*log(1-x) +d/2*log(1-x^2)),x),
+    stephist!(p,collect(z), weights= map(z -> exp(-d/(1-z) -d*log(1-z) +d/2*log(1-z^2)),z),
      bins=x,normalize=:pdf,label="d=$d",lwd=3)
 end
 p
