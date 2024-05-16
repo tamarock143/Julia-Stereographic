@@ -269,12 +269,13 @@ srwxnorms = load("srwxnorms.jld")["srwxnorms"]
 slicexnorms = load("slicexnorms.jld")["slicexnorms"]
 
 p = plot()
-z = range(-1,1,length=1001)[2:end-1]
+z = range(-1,1,length=2001)[2:end-1]
+gam(d) = d^1.2
 
-for d in [1,2,5,10,50,100,200]
-    stephist!(p,collect(z), weights= map(z -> exp(-d/(1-z) -d*log(1-z) +d/2*log(1-z^2)),z),
-     bins=x,normalize=:pdf,label="d=$d",lwd=3)
+for d in [1,10,100,1000,10000]
+    stephist!(p,collect(z), weights= map(z -> exp(-gam(d)/(1-z) -d*log(1-z) +d/2*log(1-z^2) + (d+gam(d))/2 -d/2*log(d) +d/2*log(gam(d))),z),
+     bins=z,normalize=:pdf,label="d=$d",lwd=3)
 end
-p
+p 
 
 savefig("NormLatitudeDensitiesSmallVar.pdf")

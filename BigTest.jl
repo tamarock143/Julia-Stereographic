@@ -14,7 +14,7 @@ d = 2
 sigma = sqrt(d)I(d)
 mu = zeros(d)
 
-nu = 2
+nu = 1.6
 
 d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]) + mu)[1]
 
@@ -55,7 +55,7 @@ adaptlengthslice = Nslice/200
 ### SRW Tests
 
 h2 = 20*d^-1
-Nsrw::Int64 = 2.4e7 #~1000 seconds
+Nsrw::Int64 = 2.45e7 #~1000 seconds
 
 burninsrw = Nsrw/200
 adaptlengthsrw = Nsrw/200
@@ -66,7 +66,7 @@ adaptlengthsrw = Nsrw/200
 hmcdelta = 1.45d^(-1/4)
 L = 5
 d > 1 ? M = I(d) : M = 1
-N::Int64 = 1.8e7 #~1000sec
+N::Int64 = 1.85e7 #~1000sec
 
 
 
@@ -82,6 +82,16 @@ mySBPStest = function ()
 
     return(xnorms)
 end
+
+#Output norms of SSS process
+mySSStest = function ()
+    @time sliceout = SliceAdaptive(f, x0, Nslice, beta, r, R; sigma, mu, burnin = burninslice, adaptlength = adaptlengthslice);
+
+    slicexnorms = vec(sum(sliceout.x .^2, dims=2))
+    
+    return(slicexnorms)
+end
+
 
 #Output norms of SRW process
 mySRWtest = function ()
@@ -101,15 +111,6 @@ myHMCtest = function ()
     return(hmcxnorms)
 end
 
-#Output norms of SSS process
-mySSStest = function ()
-    @time sliceout = SliceAdaptive(f, x0, Nslice, beta, r, R; sigma, mu, burnin = burninslice, adaptlength = adaptlengthslice);
-
-    slicexnorms = vec(sum(sliceout.x .^2, dims=2))
-    
-    return(slicexnorms)
-end
-
 
 #### TESTING RANGE
 Ntest = 10
@@ -120,12 +121,13 @@ slicexnorms = reduce(hcat,[mySSStest() for _ in 1:Ntest])
 hmcxnorms = reduce(hcat,[myHMCtest() for _ in 1:Ntest])
 
 
-p = plot(10 .^(-2:0.1:9), a -> abs(sum(xnorms/d .>= a)/length(xnorms) - Z(a))/Z(a), label = "SBPS")
+p = plot(10 .^(-2:0.1:11), a -> abs(sum(xnorms/d .>= a)/length(xnorms) - Z(a))/Z(a), label = "SBPS")
 plot!(p, xscale=:log10, yscale=:log10, minorgrid=true)
-plot!(p, 10 .^(-2:0.1:9), a -> abs(sum(srwxnorms/d .>= a)/length(srwxnorms) - Z(a))/Z(a), label = "SRW")
-plot!(p, 10 .^(-2:0.1:9), a -> abs(sum(hmcxnorms/d .>= a)/length(hmcxnorms) - Z(a))/Z(a), label = "HMC")
-plot!(p, 10 .^(-2:0.1:9), a -> abs(sum(slicexnorms/d .>= a)/length(slicexnorms) - Z(a))/Z(a), label = "Slice")
+plot!(p, 10 .^(-2:0.1:11), a -> abs(sum(srwxnorms/d .>= a)/length(srwxnorms) - Z(a))/Z(a), label = "SRW")
+plot!(p, 10 .^(-2:0.1:11), a -> abs(sum(hmcxnorms/d .>= a)/length(hmcxnorms) - Z(a))/Z(a), label = "HMC")
+plot!(p, 10 .^(-2:0.1:11), a -> abs(sum(slicexnorms/d .>= a)/length(slicexnorms) - Z(a))/Z(a), label = "Slice")
 plot!(p, legend=:bottomright)
-title!(p, "Log Absolute Relative Error for CCDF of norm of a t-distribution\nwith d = 2,  ν = 2 (10 runs each of ~1000 seconds)", titlefontsize = 10)
+title!(p, "Log Absolute Relative Error for CCDF of norm of a t-distribution\nwith d = 2,  ν = 1.6 (10 runs each of ~1000 seconds)", titlefontsize = 10)
+p
 
-savefig("tNormDistComparisonLong.pdf")
+savefig("tNormDistComparisonNu16.pdf")
