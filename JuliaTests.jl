@@ -9,13 +9,15 @@ using SpecialFunctions
 using StatsBase
 using JLD
 
-d = 2
+d = 200
 sigma = sqrt(d)I(d)
 mu = zeros(d)
 
 nu = 2
 
 d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]) + mu)[1]
+
+x0 .+= 1e3
 
 f = x -> -(nu + d)/2*log(nu+sum(x.^2))
 
@@ -27,9 +29,9 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 2.2e6 #~1000sec
+T = 1e3 #~1000sec
 delta = 0.1
-Tbrent = pi/10
+Tbrent = pi/100
 Epsbrent = 0.01
 tol = 1e-6
 lambda = 1
@@ -270,7 +272,7 @@ slicexnorms = load("slicexnorms.jld")["slicexnorms"]
 
 p = plot()
 z = range(-1,1,length=2001)[2:end-1]
-gam(d) = d^1.2
+gam(d) = d
 
 for d in [1,10,100,1000,10000]
     stephist!(p,collect(z), weights= map(z -> exp(-gam(d)/(1-z) -d*log(1-z) +d/2*log(1-z^2) + (d+gam(d))/2 -d/2*log(d) +d/2*log(gam(d))),z),
