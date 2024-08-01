@@ -11,13 +11,11 @@ using JLD
 
 d = 200
 sigma = sqrt(d)I(d)
-mu = zeros(d)
+mu = zeros(d) .+ 1e3
 
 nu = 2
 
 d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]) + mu)[1]
-
-x0 .+= 1e3
 
 f = x -> -(nu + d)/2*log(nu+sum(x.^2))
 
@@ -29,7 +27,7 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 1e3 #~1000sec
+T = 1e4 #~1000sec
 delta = 0.1
 Tbrent = pi/100
 Epsbrent = 0.01
@@ -37,8 +35,8 @@ tol = 1e-6
 lambda = 1
 
 beta = 1.1
-burnin = T/200
-adaptlength = T/200
+burnin = T/2000
+adaptlength = T/2000
 R = 1e9
 r = 1e-3
 
@@ -73,9 +71,11 @@ plot!(q, label= "t", lw=3)
 xlabel!("x")
 ylabel!("P(x)")
 
-plot(0:delta:T,out.x[:,1], label = "x1")
+plot(0:delta:T/2,out.x[:,1], label = "x1")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
 plot!(0:delta:T,out.x[:,2], label = "x2")
+
+#savefig("ASBPSx.pdf")
 
 #map(x -> sum(x -> x^2, x - mu), eachrow(out.mu))
 #map(x -> sum(x -> x^2, eigen(x - sqrt(d)I(d)).values), out.sigma)
@@ -97,16 +97,16 @@ vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
 
 mean(out.z[:,end])
 
-#savefig("tAdaptationsLatitude.pdf")
+#savefig("ASBPSz.pdf")
 
 
 ### SSS Tests
 
-Nslice::Int64 = 2.5e7 #~1000sec
+Nslice::Int64 = 10 #~1000sec
 
 beta = 1.1
-burninslice = Nslice/200
-adaptlengthslice = Nslice/200
+burninslice = 1
+adaptlengthslice = 2
 R = 1e9
 r = 1e-3
 

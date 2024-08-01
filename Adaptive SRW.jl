@@ -78,7 +78,7 @@ SRWAdaptive = function(logf, x0, h2, N, beta, r, R;
         println("Adaptation number: ", iadapt, "/", nadapt, ". Adaptation length: ", t, "\n")
         
         #Run the process with the given parameters
-        @time (xpath,zpath) = SRWSimulator(logf, xout[adaptstarts[iadapt],:], h2, min(t,left); 
+        @time (xpath,zpath) = SRWSimulator(logf, xout[adaptstarts[iadapt]-1,:], h2, min(t,left); 
         sigma = sigmaest[iadapt], mu = muest[iadapt,:], includefirst = (iadapt == 1))
 
         #Update how much time is left

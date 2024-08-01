@@ -78,7 +78,7 @@ SliceAdaptive = function(logf, x0, N, beta, r, R;
         println("Adaptation number: ", iadapt, "/", nadapt, ". Adaptation length: ", t, "\n")
         
         #Run the process with the given parameters
-        @time (xpath,zpath) = SliceSimulator(logf, xout[adaptstarts[iadapt],:], min(t,left); 
+        @time (xpath,zpath) = SliceSimulator(logf, xout[adaptstarts[iadapt]-1,:], min(t,left); 
         sigma = sigmaest[iadapt], mu = muest[iadapt,:], includefirst = (iadapt == 1))
 
         #Update how much time is left
