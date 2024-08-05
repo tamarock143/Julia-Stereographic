@@ -4,7 +4,7 @@ using Random
 
 #We simulate an Stereographic Projection Sampler path targeting the disribtuion f
 #To more easily differentiate between SPS and SBPS, we dub this algorithm the Stereographic Random Walk algorithm
-SRWSimulator = function(logf, x0, h2, N; sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), includefirst = true)
+SRWSimulator = function(logf, x0, h2, N; sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), includefirst = true, steps = 1)
     
     z = SPinv(x0; sigma = sigma, mu = mu, isinv = false) #Map to the sphere
 
@@ -35,27 +35,30 @@ SRWSimulator = function(logf, x0, h2, N; sigma = sqrt(length(x0))I(length(x0)), 
         #Print iteration number
         print("\rStep number: $n")
 
-        dz = h2*randn(d+1) #Gaussian step
-        dz -= sum(z.*dz)*z #Project step onto the tangent plane at z
+        #We only sample one point after several steps
+        for _ in 1:steps
+            dz = h2*randn(d+1) #Gaussian step
+            dz -= sum(z.*dz)*z #Project step onto the tangent plane at z
 
-        zprime = normalize(z + dz) #New proposed point
-        xprime = SP(zprime; sigma = sigma, mu = mu) #Project to Euclidean Space
+            zprime = normalize(z + dz) #New proposed point
+            xprime = SP(zprime; sigma = sigma, mu = mu) #Project to Euclidean Space
 
-        fxprime = logf(xprime) #Density at xprime
+            fxprime = logf(xprime) #Density at xprime
 
-        #Compute log-acceptance probability, based on projected density
-        a = -fx + d*log(1 - z[end]) + fxprime - d*log(1 - zprime[end])
+            #Compute log-acceptance probability, based on projected density
+            a = -fx + d*log(1 - z[end]) + fxprime - d*log(1 - zprime[end])
 
-        u = log(rand(Float64)) #Simulate from uniform to accept/reject
+            u = log(rand(Float64)) #Simulate from uniform to accept/reject
 
-        if u < a #Accept proposal
-            #Update position in both Euclidean and Stereographic space
-            (x, z, fx) = (xprime, zprime, fxprime) 
+            if u < a #Accept proposal
+                #Update position in both Euclidean and Stereographic space
+                (x, z, fx) = (xprime, zprime, fxprime) 
 
-            #Keep track of average acceptance probability
-            aout += 1/(N - includefirst)
+                #Keep track of average acceptance probability
+                aout += 1/(N - includefirst)
+            end
         end
-
+        
         #Add to output
         xout[n,:] .= x
         zout[n,:] .= z

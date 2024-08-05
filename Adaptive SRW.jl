@@ -3,7 +3,7 @@ include("SRW.jl")
 include("Optimisation.jl")
 
 SRWAdaptive = function(logf, x0, h2, N, beta, r, R;
-    sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), burnin = 1e2, adaptlength = burnin)
+    sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), burnin = 1e2, adaptlength = burnin, steps = 1)
 
     d = length(x0) #The dimension
 
@@ -78,8 +78,9 @@ SRWAdaptive = function(logf, x0, h2, N, beta, r, R;
         println("Adaptation number: ", iadapt, "/", nadapt, ". Adaptation length: ", t, "\n")
         
         #Run the process with the given parameters
-        @time (xpath,zpath) = SRWSimulator(logf, xout[adaptstarts[iadapt]-1,:], h2, min(t,left); 
-        sigma = sigmaest[iadapt], mu = muest[iadapt,:], includefirst = (iadapt == 1))
+        #The -(iadapt !=1) term is a workaround for indexing
+        @time (xpath,zpath) = SRWSimulator(logf, xout[adaptstarts[iadapt]-(iadapt !=1),:], h2, min(t,left); 
+        sigma = sigmaest[iadapt], mu = muest[iadapt,:], includefirst = (iadapt == 1), steps = steps)
 
         #Update how much time is left
         left >= t ? left -= t : left = 0
@@ -100,10 +101,10 @@ SRWAdaptive = function(logf, x0, h2, N, beta, r, R;
 
         #We will "forget" the first half of the epochs
         #Calculate how many terms are used for the estimators
-        nlearn = sum(times[ceil(Int64, iadapt/3):iadapt])
+        nlearn = sum(times[ceil(Int64, iadapt/2):iadapt])
 
         #Placeholder for mu update
-        mutemp = sum(m[ceil(Int64, iadapt/3):iadapt])/nlearn
+        mutemp = sum(m[ceil(Int64, iadapt/2):iadapt])/nlearn
 
         #Update sum for covariance estimator
         for x in eachrow(xpath)
@@ -120,7 +121,7 @@ SRWAdaptive = function(logf, x0, h2, N, beta, r, R;
         #Try statement included in case of NaNs or other matrix irregularities (such as near-0 eigenvalues)
         try
             #Placeholder for sigma update
-            sigmatemp = nlearn/(nlearn-1)*Symmetric(sum(s2[ceil(Int64, iadapt/3):iadapt])/nlearn - mutemp*mutemp')
+            sigmatemp = nlearn/(nlearn-1)*Symmetric(sum(s2[ceil(Int64, iadapt/2):iadapt])/nlearn - mutemp*mutemp')
 
             invtemp = inv(sqrt(sigmatemp))
 

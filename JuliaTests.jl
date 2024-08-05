@@ -11,7 +11,7 @@ using JLD
 
 d = 200
 sigma = sqrt(d)I(d)
-mu = zeros(d) .+ 1e3
+mu = zeros(d) .+1e1
 
 nu = 2
 
@@ -27,9 +27,9 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 1e4 #~1000sec
+T = 5e3
 delta = 0.1
-Tbrent = pi/100
+Tbrent = pi/200
 Epsbrent = 0.01
 tol = 1e-6
 lambda = 1
@@ -71,7 +71,7 @@ plot!(q, label= "t", lw=3)
 xlabel!("x")
 ylabel!("P(x)")
 
-plot(0:delta:T/2,out.x[:,1], label = "x1")
+plot(0:delta:T,out.x[:,1], label = "x1")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
 plot!(0:delta:T,out.x[:,2], label = "x2")
 
@@ -102,15 +102,16 @@ mean(out.z[:,end])
 
 ### SSS Tests
 
-Nslice::Int64 = 10 #~1000sec
+Nslice::Int64 = 1e4
+stepsslice::Int64 = 10
 
 beta = 1.1
-burninslice = 1
-adaptlengthslice = 2
+burninslice = Nslice/2000
+adaptlengthslice = Nslice/2000
 R = 1e9
 r = 1e-3
 
-@time sliceout = SliceAdaptive(f, x0, Nslice, beta, r, R; sigma, mu, burnin = burninslice, adaptlength = adaptlengthslice);
+@time sliceout = SliceAdaptive(f, x0, Nslice, beta, r, R; sigma, mu, burnin = burninslice, adaptlength = adaptlengthslice, steps = stepsslice);
 
 #@time sliceout = SliceSimulator(f, x0, Nslice; sigma, mu);
 
@@ -145,15 +146,16 @@ cov(sliceout.x[floor(Int64,2/3*10^5):end,:])
 ### SRW Tests
 
 h2 = 20*d^-1
-Nsrw::Int64 = 2.4e7 #~1000 seconds
+Nsrw::Int64 = 1e4
+stepssrw::Int64 = 10
 
 beta = 1.1
-burninsrw = Nsrw/200
-adaptlengthsrw = Nsrw/200
+burninsrw = Nsrw/2000
+adaptlengthsrw = Nsrw/2000
 R = 1e9
 r = 1e-3
 
-@time srwout = SRWAdaptive(f, x0, h2, Nsrw, beta, r, R; sigma, mu,burnin = burninsrw, adaptlength = adaptlengthsrw);
+@time srwout = SRWAdaptive(f, x0, h2, Nsrw, beta, r, R; sigma, mu,burnin = burninsrw, adaptlength = adaptlengthsrw, steps = stepssrw);
 
 #@time srwout = SRWSimulator(f, x0, h2, Nsrw; sigma, mu);
 
@@ -168,7 +170,11 @@ xlabel!("x")
 ylabel!("P(x)")
 
 plot(srwout.x[:,1])
-vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
+vline!(cumsum(srwout.times[1:end-1]), label = "Adaptations", lw = 0.5)
+
+plot(srwout.z[:,end])
+vline!(cumsum(srwout.times[1:end-1]), label = "Adaptations", lw = 0.5)
+
 
 #plot(srwout.x[:,1],srwout.x[:,2])
 
@@ -183,7 +189,7 @@ maximum(srwxnorms)
 hmcdelta = 1.45d^(-1/4)
 L = 5
 d > 1 ? M = I(d) : M = 1
-N::Int64 = 1.8e7 #~1000sec
+N::Int64 = 1e6 #~1000sec
 
 @time hmcout = HMC(f, gradlogf, x0, N, hmcdelta, L; M = M);
 hmcout.a
