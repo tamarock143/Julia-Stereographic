@@ -55,7 +55,7 @@ SRWSimulator = function(logf, x0, h2, N; sigma = sqrt(length(x0))I(length(x0)), 
                 (x, z, fx) = (xprime, zprime, fxprime) 
 
                 #Keep track of average acceptance probability
-                aout += 1/(N - includefirst)
+                aout += 1/(N*steps - includefirst)
             end
         end
         

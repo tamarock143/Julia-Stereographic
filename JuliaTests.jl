@@ -4,6 +4,7 @@ include("Adaptive SRW.jl")
 include("SHMC.jl")
 include("Adaptive Slice.jl")
 
+using ForwardDiff
 using Plots
 using SpecialFunctions
 using StatsBase
@@ -11,7 +12,7 @@ using JLD
 
 d = 200
 sigma = sqrt(d)I(d)
-mu = zeros(d) .+1e1
+mu = zeros(d) .+ 1e3
 
 nu = 2
 
@@ -75,7 +76,7 @@ plot(0:delta:T,out.x[:,1], label = "x1")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
 plot!(0:delta:T,out.x[:,2], label = "x2")
 
-#savefig("ASBPSx.pdf")
+#savefig("ASBPSz.pdf")
 
 #map(x -> sum(x -> x^2, x - mu), eachrow(out.mu))
 #map(x -> sum(x -> x^2, eigen(x - sqrt(d)I(d)).values), out.sigma)
@@ -102,7 +103,7 @@ mean(out.z[:,end])
 
 ### SSS Tests
 
-Nslice::Int64 = 1e4
+Nslice::Int64 = 1.3e5
 stepsslice::Int64 = 10
 
 beta = 1.1
@@ -127,11 +128,13 @@ plot!(q, label= "t", lw=3)
 xlabel!("x")
 ylabel!("P(x)")
 
-plot(sliceout.x[:,1], label = "x1")
-vline!(cumsum(sliceout.times[1:end-1]), label = "Adaptations", lw = 0.5)
+plot(1:stepsslice:Nslice*stepsslice,sliceout.x[:,1], label = "x1")
+vline!(stepsslice*cumsum(sliceout.times[1:end-1]), label = "Adaptations", lw = 0.5)
 
-plot(sliceout.z[:,end], label = "z_{d+1}")
-vline!(cumsum(sliceout.times[1:end-1]), label = "Adaptations", lw = 0.5)
+#savefig("ASSSx.pdf")
+
+plot(1:stepsslice:Nslice*stepsslice,sliceout.z[:,end], label = "z_{d+1}")
+vline!(stepsslice*cumsum(sliceout.times[1:end-1]), label = "Adaptations", lw = 0.5)
 
 #map(x -> sum(x -> x^2, x), eachrow(sliceout.mu))
 #plot(log.(map(x -> sum(x -> x^2, eigen(x - sqrt(d)I(d)).values), sliceout.sigma)))
@@ -145,9 +148,9 @@ cov(sliceout.x[floor(Int64,2/3*10^5):end,:])
 
 ### SRW Tests
 
-h2 = 20*d^-1
-Nsrw::Int64 = 1e4
-stepssrw::Int64 = 10
+h2 = 0.1d^-1
+Nsrw::Int64 = 2e6
+stepssrw::Int64 = 100
 
 beta = 1.1
 burninsrw = Nsrw/2000
@@ -169,12 +172,13 @@ plot!(q, label= "t", lw=3)
 xlabel!("x")
 ylabel!("P(x)")
 
-plot(srwout.x[:,1])
-vline!(cumsum(srwout.times[1:end-1]), label = "Adaptations", lw = 0.5)
+plot(1:stepssrw:1500000*stepssrw, srwout.x[1:1500000,1], label = "x1")
+vline!(stepssrw*cumsum(srwout.times[1:end-7]), label = "Adaptations", lw = 0.5)
 
-plot(srwout.z[:,end])
-vline!(cumsum(srwout.times[1:end-1]), label = "Adaptations", lw = 0.5)
+plot(1:stepssrw:1500000*stepssrw,srwout.z[1:1500000,end], label = "z_{d+1}", legend=:bottom)
+vline!(stepssrw*cumsum(srwout.times[1:end-7]), label = "Adaptations", lw = 0.5)
 
+#savefig("ASRWz.pdf")
 
 #plot(srwout.x[:,1],srwout.x[:,2])
 
@@ -186,12 +190,13 @@ maximum(srwxnorms)
 
 ### HMC Testing
 
-hmcdelta = 1.45d^(-1/4)
+hmcdelta = d^(-1/4)
 L = 5
 d > 1 ? M = I(d) : M = 1
-N::Int64 = 1e6 #~1000sec
+Nhmc::Int64 = 1e5 #~1000sec
+hmcsteps = 100
 
-@time hmcout = HMC(f, gradlogf, x0, N, hmcdelta, L; M = M);
+@time hmcout = HMC(f, gradlogf, x0, Nhmc, hmcdelta, L; M = M, steps = hmcsteps);
 hmcout.a
 #Plot comparison against the true distribution
 #p(x) = 1/sqrt(2pi)*exp(-x^2/2)
@@ -204,13 +209,16 @@ plot!(q, label= "t", lw = 3)
 xlabel!("x")
 ylabel!("P(x)")
 
-plot(hmcout.x[:,1], label = "x")
+plot(1:hmcsteps:hmcsteps*Nhmc,hmcout.x[:,1], label = "x1")
+
+#savefig("AHMCnorms.pdf")
+
 
 #plot(hmcout.x[:,1],hmcout.x[:,2])
 
 hmcxnorms = vec(sum(hmcout.x .^2, dims=2))
-#plot(sqrt.(hmcxnorms), label = "||x||")
-maximum(hmcxnorms)
+plot(1:hmcsteps:hmcsteps*Nhmc,sqrt.(hmcxnorms), label = "||x||")
+#maximum(hmcxnorms)
 
 
 
@@ -278,12 +286,19 @@ slicexnorms = load("slicexnorms.jld")["slicexnorms"]
 
 p = plot()
 z = range(-1,1,length=2001)[2:end-1]
-gam(d) = d
+radius(d) = d^1.3
 
-for d in [1,10,100,1000,10000]
-    stephist!(p,collect(z), weights= map(z -> exp(-gam(d)/(1-z) -d*log(1-z) +d/2*log(1-z^2) + (d+gam(d))/2 -d/2*log(d) +d/2*log(gam(d))),z),
+for d in [1,5,10,50,100,1000]
+    stephist!(p,collect(z), weights= map(z -> exp(-radius(d)/(1-z) -d*log(1-z) +d/2*log(1-z^2) + (d+radius(d))/2 -d/2*log(d) +d/2*log(radius(d))),z),
      bins=z,normalize=:pdf,label="d=$d",lwd=3)
 end
+plot!(xlim=xlims(), ylim=ylims())
+
+for d in [10000]
+    stephist!(p,collect(z), weights= map(z -> exp(-radius(d)/(1-z) -d*log(1-z) +d/2*log(1-z^2) + (d+radius(d))/2 -d/2*log(d) +d/2*log(radius(d))),z),
+     bins=z,normalize=:pdf,label="d=$d",lwd=3)
+end
+
 p 
 
-savefig("NormLatitudeDensitiesSmallVar.pdf")
+savefig("NormLatitudeDensitiesBigVar.pdf")

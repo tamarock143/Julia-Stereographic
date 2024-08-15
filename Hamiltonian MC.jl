@@ -20,7 +20,7 @@ LeapFrog = function (gradlogf, x, p, delta, L; Minv = I(length(x)))
 end
 
 #HMC Algorithm
-HMC = function (logf, gradlogf, x0, N, delta, L; M = I(length(x0)))
+HMC = function (logf, gradlogf, x0, N, delta, L; M = I(length(x0)), steps = 1)
     d = length(x0) #The dimension
 
     Minv = inv(M) #Invert M preemptively
@@ -38,24 +38,27 @@ HMC = function (logf, gradlogf, x0, N, delta, L; M = I(length(x0)))
         #Print iteration number
         print("\rStep number: $n")
 
-        #Initialise velocity
-        d > 1 ? p = Msqrt*randn(d) : p = Msqrt*randn()
+        #We only sample one point after several steps
+        for _ in 1:steps
+            #Initialise velocity
+            d > 1 ? p = Msqrt*randn(d) : p = Msqrt*randn()
 
-        #Apply Leapfrog integrator to get proposals
-        (xprime, pprime) = LeapFrog(gradlogf, x, p, delta, L; Minv = Minv)
+            #Apply Leapfrog integrator to get proposals
+            (xprime, pprime) = LeapFrog(gradlogf, x, p, delta, L; Minv = Minv)
 
-        #Compute acceptance probability
-        a = -logf(x) + logf(xprime) + (p'*Minv*p - pprime'*Minv*pprime)/2
+            #Compute acceptance probability
+            a = -logf(x) + logf(xprime) + (p'*Minv*p - pprime'*Minv*pprime)/2
 
-        u = log(rand(Float64)) #Simulate from uniform to accept/reject
+            u = log(rand(Float64)) #Simulate from uniform to accept/reject
 
-        if u < a #Accept proposal
-            xout[n,:] .= xprime
-            x = xprime #Update position
-            aout += 1/(N-1)
-        else #Reject proposal
-            xout[n,:] .= x
+            if u < a #Accept proposal
+                x = xprime #Update position
+                aout += 1/(N*steps-1)
+            end
         end
+
+        #Add to output
+        xout[n,:] .= x
     end
     println()
 
