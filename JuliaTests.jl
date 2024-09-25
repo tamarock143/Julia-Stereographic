@@ -10,11 +10,11 @@ using SpecialFunctions
 using StatsBase
 using JLD
 
-d = 200
+d = 2
 sigma = sqrt(d)I(d)
-mu = zeros(d) .+ 1e3
+mu = zeros(d)
 
-nu = 2
+nu = 1
 
 d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]) + mu)[1]
 
@@ -28,15 +28,15 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 5e3
-delta = 0.1
+T = 100
+delta = 0.01
 Tbrent = pi/200
 Epsbrent = 0.01
 tol = 1e-6
 lambda = 1
 
 beta = 1.1
-burnin = T/2000
+burnin = T
 adaptlength = T/2000
 R = 1e9
 r = 1e-3
@@ -84,10 +84,12 @@ plot!(0:delta:T,out.x[:,2], label = "x2")
 eventtimes = findall(x -> x>1e-2, vec(sum(x -> x^2,out.v[1:end-1,:] - out.v[2:end,:], dims=2)))
 
 
-myplot = plot(1, xlim = (-3.5,3.5), ylim = (-3.5,3.5), label="SBPS path",legend=:topleft,framestyle=:origin)
 myanim = @animate for i in 1:size(out.x)[1]
-    push!(myplot, out.x[i,1],out.x[i,2])
-end every 10
+    myplot = plot(1, xlim = (-20,20), ylim = (-20,20), label="",framestyle=:origin)
+    plot!(myplot, out.x[1:i,1], out.x[1:i,2], color=1, label="")
+    scatter!(myplot, [out.x[i,1]], [out.x[i,2]], c=:red, label="")
+    myplot
+end every 50
 
 gif(myanim, "SBPS.gif")
 
@@ -103,11 +105,11 @@ mean(out.z[:,end])
 
 ### SSS Tests
 
-Nslice::Int64 = 1.3e5
-stepsslice::Int64 = 10
+Nslice::Int64 = 6e2
+stepsslice::Int64 = 1
 
 beta = 1.1
-burninslice = Nslice/2000
+burninslice = Nslice
 adaptlengthslice = Nslice/2000
 R = 1e9
 r = 1e-3
@@ -144,16 +146,24 @@ plot(autocor(sliceout.x[:,1].^2))
 cov(sliceout.x[floor(Int64,2/3*10^5):end,:])
 
 
+myanim = @animate for i in 1:size(sliceout.x)[1]
+    myplot = plot(1, xlim = (-20,20), ylim = (-20,20), label="",framestyle=:origin)
+    plot!(myplot, sliceout.x[1:i,1], sliceout.x[1:i,2], color=1, label="")
+    scatter!(myplot, [sliceout.x[i,1]], [sliceout.x[i,2]], c=:red, label="")
+    myplot
+end every 3
+
+gif(myanim, "SSS.gif")
 
 
 ### SRW Tests
 
-h2 = 0.1d^-1
-Nsrw::Int64 = 2e6
-stepssrw::Int64 = 100
+h2 = d^-1
+Nsrw::Int64 = 6e2
+stepssrw::Int64 = 1
 
 beta = 1.1
-burninsrw = Nsrw/2000
+burninsrw = Nsrw
 adaptlengthsrw = Nsrw/2000
 R = 1e9
 r = 1e-3
@@ -186,7 +196,14 @@ srwxnorms = vec(sum(srwout.x .^2, dims=2))
 #plot(sqrt.(srwxnorms), label = "||x||")
 maximum(srwxnorms)
 
+myanim = @animate for i in 1:size(srwout.x)[1]
+    myplot = plot(1, xlim = (-20,20), ylim = (-20,20), label="",framestyle=:origin)
+    plot!(myplot, srwout.x[1:i,1], srwout.x[1:i,2], color=1, label="")
+    scatter!(myplot, [srwout.x[i,1]], [srwout.x[i,2]], c=:red, label="")
+    myplot
+end every 3
 
+gif(myanim, "SRW.gif")
 
 ### HMC Testing
 
