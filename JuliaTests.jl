@@ -44,7 +44,7 @@ r = 1e-3
 @time out = SBPSAdaptive(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Epsbrent, tol, sigma, mu, burnin, adaptlength);
 
 FullSBPS = function()
-    (zout,vout,eventsout) = SBPSSimulator(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, Epsbrent = Epsbrent, tol = tol,
+    (zout,vout,eventsout,Nevals) = SBPSSimulator(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, Epsbrent = Epsbrent, tol = tol,
     sigma = sigma, mu = mu);
 
     n = floor(BigInt, T/delta)+1 #Total number of observations of the skeleton path
@@ -55,7 +55,7 @@ FullSBPS = function()
         xout[i,:] = SP(zout[i,:]; sigma = sigma, mu = mu)
     end
 
-    return (z = zout, v = vout, x = xout, events = eventsout)
+    return (z = zout, v = vout, x = xout, events = eventsout, Nevals = Nevals)
 end
 
 #@time out = FullSBPS();

@@ -72,18 +72,25 @@ GoldenSearch = function (f,a,b,c; fa = missing, fb = missing, fc = missing, trip
     end
 end
 
-Brent = function (f,a,b,tol)
+Brent = function (f,a,b,tol; countevals = false)
     #Start by performing a Binary search, by looking at the midpoint of the interval
     #We do this because GoldenSearch and ParaSearch both require an interval with a minimum in it
+    
+    #Counter for number of evaluations of f
+    countevals && (Nevals = 0)
+    
+    #Initialise f evaluations
     fa = f(a)
     fb = f(b)
 
+    countevals && (Nevals += 2)
+
     #If the interval is tiny, we're done
-    b-a <= tol && return (a,fa)
+    b-a <= tol && (countevals ? (return (a,fa,Nevals)) : return (a,fa))
 
     #Initialise midpoint
     x = (b+a)/2
-    fx = f(x)
+    fx = f(x); countevals && (Nevals += 1)
 
     #If there is a minimum in the middle, we're good to go for optimisation
     if fa > fx < fb
@@ -94,10 +101,10 @@ Brent = function (f,a,b,tol)
 
         #Test for a decrease towards (a,fa) from above
         x = a + tol
-        fx = f(x)
+        fx = f(x); countevals && (Nevals += 1)
 
         #If fa is the minimum, we're now within the tolerance window
-        fx >= fa && return (a,fa)
+        fx >= fa && (countevals ? (return (a,fa,Nevals)) : return (a,fa))
         
         #Otherwise, we now have fb > fa > fx and are good to go
     else
@@ -105,10 +112,10 @@ Brent = function (f,a,b,tol)
 
         #Test for a decrease towards (b,fb) from below
         x = b - tol
-        fx = f(x)
+        fx = f(x); countevals && (Nevals += 1)
 
         #If fb is the minimum, we're now within the tolerance window
-        fx >= fb && return (b,fb)
+        fx >= fb && (countevals ? (return (b,fb,Nevals)) : return (b,fb))
         
         #Otherwise, we now have fb > fa > fx and are good to go
     end
@@ -123,6 +130,7 @@ Brent = function (f,a,b,tol)
         #If ParaSearch did not yield satisfactory results, use GoldenSearch
         if p == "Fail" || !(a <= p[1] <= b) || abs(fx - p[2]) <= abs(fv - fw)/2
             (u,fu) = GoldenSearch(f, a, x, b, fa = fa, fb = fx, fc = fb)
+            countevals && (Nevals += 1)
         else
             (u,fu) = p
         end
@@ -146,7 +154,7 @@ Brent = function (f,a,b,tol)
         end
     end
 
-    return (x,fx)
+    (countevals ? (return(x,fx,Nevals)) : return(x,fx))
 end
 
 #Newton's Method for root finding (1 dimensional function)

@@ -46,6 +46,9 @@ SBPSSimulator = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1
 
     bounceindic = Vector{Bool}()
 
+    #Start counter of number of gradient evaluations, separated between those used in optimisation and thinning
+    Nopt = Nthin = 0
+
     while left > 0
         #Simulate next refreshment time according to Exp(lambda)
         tauref = randexp(Float64)/lambda
@@ -61,9 +64,12 @@ SBPSSimulator = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1
         nobounce = true
 
         while nobounce && taubounce <= min(left,tauref)
-            #Find upper bound M on the bounce rate for current chunk
-            M = -Brent(s -> bouncerate(s,z,v; sigma = sigma, mu = mu)[1],
-                     Bmin, Bmax, tol)[2]
+            #Find upper bound M on the bounce rate for current chunks
+            #We flip the sign of the bound because we are minimising -lambda(z,v)
+            (M,tempevals) = (-1,1) .* Brent(s -> bouncerate(s,z,v; sigma = sigma, mu = mu)[1],
+                    Bmin, Bmax, tol; countevals = true)[2:3]
+            
+            Nopt += tempevals #Brent's method outputs number of gradient evaluations
 
             #Is there a positive chance of a bounce?
             if M > 0
@@ -77,6 +83,8 @@ SBPSSimulator = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1
 
                     #Did a bounce happen, or do we reject this event?
                     mybounce = bouncerate(taubounce,z,v; sigma, mu) #Rate and gradient at bounce time
+                    Nthin += 1 #Bouncerate requires 1 gradient evaluation
+
                     u = rand(Float64) #Uniform random variable to accept/reject bounce
 
                     if -mybounce[1]/M > u #Accept bounce and break, or go for another loop
@@ -155,9 +163,12 @@ SBPSSimulator = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1
     #Remove final event, since it records the "end" event
     pop!(bounceindic)
 
-    return (z = zout, v = vout, events = bounceindic)
+    return (z = zout, v = vout, events = bounceindic, Nevals = [Nopt, Nthin])
 end
 
+
+
+#SBPS Simulator outputing only event skeleton points
 SBPSEventSimulator = function (gradlogf, x0, lambda, T; Tbrent = pi/24, tol = 1e-6,
     sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)))
 
