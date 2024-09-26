@@ -10,15 +10,15 @@ using SpecialFunctions
 using StatsBase
 using JLD
 
-d = 2
+d = 200
 sigma = sqrt(d)I(d)
-mu = zeros(d)
+mu = zeros(d) .+ 1e3
 
 nu = 1
 
 d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]) + mu)[1]
 
-f = x -> -(nu + d)/2*log(nu+sum(x.^2))
+f = x -> -sum(x.^2)/2
 
 d > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
 
@@ -30,8 +30,9 @@ gradlogf(x0)
 
 T = 100
 delta = 0.01
-Tbrent = pi/200
+Tbrent = pi
 Epsbrent = 0.01
+Abrent = 1.01
 tol = 1e-6
 lambda = 1
 
@@ -59,6 +60,13 @@ FullSBPS = function()
 end
 
 #@time out = FullSBPS();
+
+SBPSConstant(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, tol = tol,
+    sigma = sigma, mu = mu)
+
+
+SBPSGeom(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, Abrent = Abrent, tol = tol,
+    sigma = sigma, mu = mu)
 
 #Plot comparison against the true distribution
 #p(x) = 1/sqrt(2pi)*exp(-x^2/2)
