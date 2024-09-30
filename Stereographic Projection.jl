@@ -159,3 +159,42 @@ SBPSRate = function (gradlogf) #Note this function requires the ∇log(f) alread
 
     return lambda_S
 end
+
+#Simulate from a Poisson process with a step function rate
+PoissonStepSim = function (lambda,t)
+
+    N = length(lambda)
+
+    #Ensure we have as many rates as windows
+    N != length(t) && error("Mismatch between number of rates and windows")
+
+    pushfirst!(t,0)
+
+    #Simulate our Exp(1) random variable
+    e = randexp()
+
+    #Event time value
+    tau = 0
+
+    #Indicator that no event has occurred
+    noevent = true
+    i = 0
+
+    while noevent && i <= N
+        #Increment window
+        i += 1
+
+        #Check to see whether there is an event in the current window
+        if e >= lambda[i]*(t[i+1] - t[i])
+            #If not, move on to next window
+            e -= lambda[i]*(t[i+1] - t[i])
+        else
+            #Set event time within current window
+            tau = t[i] + e/lambda[i]
+            noevent = false
+        end
+    end
+
+    #If no event occurred before end of windows, return Inf
+    noevent ? (return Inf) : return tau
+end
