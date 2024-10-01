@@ -161,14 +161,12 @@ SBPSRate = function (gradlogf) #Note this function requires the ∇log(f) alread
 end
 
 #Simulate from a Poisson process with a step function rate
-PoissonStepSim = function (lambda,t)
-
-    N = length(lambda)
+#Takes a sequence of levels and interval lengths
+#Be aware, function mutates lambda and t
+PoissonStepSim = function (lambda,t; tau0 = 0)
 
     #Ensure we have as many rates as windows
-    N != length(t) && error("Mismatch between number of rates and windows")
-
-    pushfirst!(t,0)
+    length(lambda) != length(t) && error("Mismatch between number of rates and windows")
 
     #Simulate our Exp(1) random variable
     e = randexp()
@@ -178,23 +176,44 @@ PoissonStepSim = function (lambda,t)
 
     #Indicator that no event has occurred
     noevent = true
+
+    #Need to adjust the windows to start the simulation at time tau0
+    while length(t) > 0
+        j = t[1]
+
+        #if tau0 is larger than the first window, remove first window and reduce tau0
+        if tau0 >= j
+            tau0 -= j
+            popfirst!(t)
+            popfirst!(lambda)
+        else
+            #Otherwise, reduce length of first window to remove the first tau0 time
+            t[1] -= tau0
+            break
+        end
+    end
+
+    N = length(t)
     i = 0
 
-    while noevent && i <= N
+    while noevent && i < N
         #Increment window
         i += 1
 
+        tmp = lambda[i]*t[i]
+
         #Check to see whether there is an event in the current window
-        if e >= lambda[i]*(t[i+1] - t[i])
+        if e >= tmp
             #If not, move on to next window
-            e -= lambda[i]*(t[i+1] - t[i])
+            e -= tmp
         else
             #Set event time within current window
-            tau = t[i] + e/lambda[i]
+            tau = sum(t[1:i-1]) + e/lambda[i]
             noevent = false
         end
     end
 
     #If no event occurred before end of windows, return Inf
-    noevent ? (return Inf) : return tau
+    #Otherwise, return the event time and the bound at that time
+    noevent ? (return (time = Inf, bound = Inf)) : return (time = tau, bound = lambda[i])
 end

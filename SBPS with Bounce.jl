@@ -330,7 +330,7 @@ end
 
 
 #SBPS simulator with constant Brent's method window
-SBPSGeom = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1, Abrent = 1.1, tol = 1e-6,
+SBPSGeom = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1, Abrent = 1.1, Nbrent = 1, tol = 1e-6,
     sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)))
 
     z = SPinv(x0; sigma = sigma, mu = mu, isinv = false) #Map to the sphere
@@ -381,60 +381,67 @@ SBPSGeom = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1, Abr
         #Simulate next event before time Tbrent
         #Time of potential bounce event
         taubounce = 0
+        #Time between latest events
+        taustep = 0
 
-        #Tracks how many chunks of Brent's method we have gone through
+        #Tracks the starting point for the thinning upper bound
         Bmin = 0
-        Bmax = Tbrent
         #Indictor of whether we are still looking for a bounce
         nobounce = true
 
         while nobounce && taubounce <= min(left,tauref)
-            #Find upper bound M on the bounce rate for current chunks
-            #We flip the sign of the bound because we are minimising -lambda(z,v)
-            (M,tempevals) = (-1,1) .* Brent(s -> bouncerate(s,z,v; sigma = sigma, mu = mu)[1],
-                    Bmin, Bmax, tol; countevals = true)[2:3]
-            
-            Nopt += tempevals #Brent's method outputs number of gradient evaluations
+            #For step function upper bound, divide into Nbrent windows of equal length
+            twindows = repeat([Tbrent/Nbrent], Nbrent)
+            M = zeros(Nbrent)
 
-            #Is there a positive chance of a bounce?
-            if M > 0
-                #Simulate whether there will be a bounce in this chunk
-                while nobounce
-                    #Simulate next possible bounce time according to Exp(M)
-                    taubounce += randexp(Float64)/M
+            for i in 1:Nbrent
+                #Find upper bound M on the bounce rate for current chunks
+                #We flip the sign of the bound because we are minimising -lambda(z,v)
+                (M[i],tempevals) = (-1,1) .* Brent(s -> bouncerate(s,z,v; sigma = sigma, mu = mu)[1],
+                        Bmin + (i-1)*Tbrent/Nbrent, Bmin + i*Tbrent/Nbrent, tol; countevals = true)[2:3]
+                
+                Nopt += tempevals #Brent's method outputs number of gradient evaluations
+            end
 
-                    #Did the event happen before the end of the interval or another event?
-                    if taubounce > min(Bmax,tauref,left)
-                        taubounce = Bmax
+            #Set the rate upper bounds to be positive
+            map!(m -> max(0,m), M)
 
-                        #If we had no event in the window, increase future window width
-                        Tbrent *= Abrent
-                        Tbrent > 2pi && (Tbrent = 2pi)
-                        break
-                    end
+            #Simulate whether there will be a bounce in this chunk
+            while nobounce && taubounce < min(left,tauref)
+                #Simulate next possible bounce time according to the Poisson Process with the upper bound rate
+                (taustep, boundtemp) = PoissonStepSim(M,twindows; tau0 = taustep)
+                #Update time of final potential bounce event
+                taubounce += taustep
 
-                    #Did a bounce happen, or do we reject this event?
+                #Did the event happen before the end of the interval or another event?
+                if isInf(taubounce)
+                    #If we had no event in the window, increase future window width
+                    Tbrent *= Abrent
+                    #Since the paths are periodic, only need to search up to 2pi
+                    Tbrent > 2pi && (Tbrent = 2pi)
+
+                elseif taubounce < min(left,tauref) #If we do bounce, but another event happened first, skip
+
+                    #Thinning step: did a bounce happen, or do we reject this event?
                     mybounce = bouncerate(taubounce,z,v; sigma, mu) #Rate and gradient at bounce time
                     Nthin += 1 #Bouncerate requires 1 gradient evaluation
 
                     u = rand(Float64) #Uniform random variable to accept/reject bounce
 
-                    if -mybounce[1]/M > u #Accept bounce and break, or go for another loop
+                    if -mybounce[1]/boundtemp > u #Accept bounce and break, or go for another loop
                         nobounce = false
                         mygrad = mybounce[2]
                     else
                         #If we rejected the proposal, shrink future window width
                         Tbrent /= Abrent
+                        #If each window would be below the tolerance width, we would waaste computing time
+                        Tbrent < tol*Nbrent && (Tbrent = tol*Nbrent)
                     end
                 end
-            else
-                #If negative rate, move to next interval
-                taubounce = Bmax
             end
 
-            #Update Brent interval
-            Bmin = Bmax
-            Bmax += Tbrent
+            #Update Brent starting point
+            Bmin += Tbrent
         end
 
         push!(bounceindic, !nobounce)
