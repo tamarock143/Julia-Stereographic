@@ -404,7 +404,7 @@ SBPSGeom = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1, Abr
             end
 
             #Set the rate upper bounds to be positive
-            map!(m -> max(0,m), M)
+            map!(m -> max(0,m), M, M)
 
             #Simulate whether there will be a bounce in this chunk
             while nobounce && taubounce < min(left,tauref)
@@ -414,7 +414,7 @@ SBPSGeom = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1, Abr
                 taubounce += taustep
 
                 #Did the event happen before the end of the interval or another event?
-                if isInf(taubounce)
+                if isinf(taubounce)
                     #If we had no event in the window, increase future window width
                     Tbrent *= Abrent
                     #Since the paths are periodic, only need to search up to 2pi

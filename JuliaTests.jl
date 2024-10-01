@@ -12,11 +12,11 @@ using JLD
 
 d = 200
 sigma = sqrt(d)I(d)
-mu = zeros(d) .+ 1e3
+mu = zeros(d) .+ 3
 
 nu = 1
 
-d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]) + mu)[1]
+d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]))[1]
 
 f = x -> -sum(x.^2)/2
 
@@ -28,11 +28,12 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 100
-delta = 0.01
+T = 1000
+delta = 0.1
 Tbrent = pi
 Epsbrent = 0.01
 Abrent = 1.01
+Nbrent = 20
 tol = 1e-6
 lambda = 1
 
@@ -59,24 +60,40 @@ FullSBPS = function()
     return (z = zout, v = vout, x = xout, events = eventsout, Nevals = Nevals)
 end
 
-#@time out = FullSBPS();
+
+FullSBPSGeom = function()
+    (zout,vout,eventsout,Nevals,Tout) = SBPSGeom(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, Abrent = Abrent, Nbrent = Nbrent, tol = tol,
+    sigma = sigma, mu = mu);
+
+    n = floor(BigInt, T/delta)+1 #Total number of observations of the skeleton path
+    xout = zeros(n,d)
+
+    #Project each entry back to R^d
+    for i in 1:n
+        xout[i,:] = SP(zout[i,:]; sigma = sigma, mu = mu)
+    end
+
+    return (z = zout, v = vout, x = xout, events = eventsout, Nevals = Nevals, Tbrent = Tout)
+end
+
+#@time out = FullSBPS()
+
+#@time out = FullSBPSGeom()
 
 SBPSConstant(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, tol = tol,
     sigma = sigma, mu = mu)
 
 
-SBPSGeom(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, Abrent = Abrent, tol = tol,
-    sigma = sigma, mu = mu)
 
 #Plot comparison against the true distribution
-#p(x) = 1/sqrt(2pi)*exp(-x^2/2)
+p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 #q(x) = 1/sqrt(2pi*sigmaf)*exp(-x^2/2sigmaf)
 q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
 b_range = range(-8,8, length=101)
 
 histogram(out.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
-#plot!(p, label= "N(0,1)", lw=3)
-plot!(q, label= "t", lw=3)
+plot!(p, label= "N(0,1)", lw=3)
+#plot!(q, label= "t", lw=3)
 xlabel!("x")
 ylabel!("P(x)")
 
