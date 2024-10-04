@@ -10,16 +10,16 @@ using SpecialFunctions
 using StatsBase
 using JLD
 
-d = 2
+d = 200
 sigma = sqrt(d)I(d)
-mu = zeros(d) .+ 1e2
+mu = zeros(d) .+ 1e3
 
-nu = 1
+nu = 2
 
 d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]))[1]
 
-#f = x -> -(nu+d)/2*log(nu + sum(x.^2))
-f = x -> -sum(x.^2)/2
+f = x -> -(nu+d)/2*log(nu + sum(x.^2))
+#f = x -> -sum(x.^2)/2
 
 d > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
 
@@ -29,7 +29,7 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 25
+T = 7000
 delta = 0.1
 Tbrent = pi/20
 Epsbrent = 0.01
@@ -44,7 +44,8 @@ adaptlength = T/2000
 R = 1e9
 r = 1e-3
 
-@time out = SBPSAdaptive(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Abrent, Nbrent, tol, sigma, mu, burnin, adaptlength);
+@time out = SBPSAdaptiveGeom(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Abrent, Nbrent, tol, sigma, mu, burnin, adaptlength);
+
 
 FullSBPS = function()
     (zout,vout,eventsout,Nevals) = SBPSSimulator(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, Epsbrent = Epsbrent, tol = tol,
