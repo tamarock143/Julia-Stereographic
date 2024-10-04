@@ -10,14 +10,15 @@ using SpecialFunctions
 using StatsBase
 using JLD
 
-d = 200
+d = 2
 sigma = sqrt(d)I(d)
-mu = zeros(d) .+ 3
+mu = zeros(d) .+ 1e2
 
 nu = 1
 
 d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]))[1]
 
+#f = x -> -(nu+d)/2*log(nu + sum(x.^2))
 f = x -> -sum(x.^2)/2
 
 d > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
@@ -28,22 +29,22 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 1000
+T = 25
 delta = 0.1
-Tbrent = pi
+Tbrent = pi/20
 Epsbrent = 0.01
 Abrent = 1.01
-Nbrent = 20
+Nbrent = 10
 tol = 1e-6
 lambda = 1
 
 beta = 1.1
-burnin = T
+burnin = T/2000
 adaptlength = T/2000
 R = 1e9
 r = 1e-3
 
-@time out = SBPSAdaptive(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Epsbrent, tol, sigma, mu, burnin, adaptlength);
+@time out = SBPSAdaptive(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Abrent, Nbrent, tol, sigma, mu, burnin, adaptlength);
 
 FullSBPS = function()
     (zout,vout,eventsout,Nevals) = SBPSSimulator(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, Epsbrent = Epsbrent, tol = tol,
@@ -59,7 +60,6 @@ FullSBPS = function()
 
     return (z = zout, v = vout, x = xout, events = eventsout, Nevals = Nevals)
 end
-
 
 FullSBPSGeom = function()
     (zout,vout,eventsout,Nevals,Tout) = SBPSGeom(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, Abrent = Abrent, Nbrent = Nbrent, tol = tol,
@@ -80,11 +80,6 @@ end
 
 #@time out = FullSBPSGeom()
 
-SBPSConstant(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, tol = tol,
-    sigma = sigma, mu = mu)
-
-
-
 #Plot comparison against the true distribution
 p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 #q(x) = 1/sqrt(2pi*sigmaf)*exp(-x^2/2sigmaf)
@@ -93,7 +88,7 @@ b_range = range(-8,8, length=101)
 
 histogram(out.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
 plot!(p, label= "N(0,1)", lw=3)
-#plot!(q, label= "t", lw=3)
+plot!(q, label= "t", lw=3)
 xlabel!("x")
 ylabel!("P(x)")
 
