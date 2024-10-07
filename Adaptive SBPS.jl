@@ -2,7 +2,7 @@
 include("SBPS with Bounce.jl")
 
 SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, Epsbrent = 0.01, tol = 1e-6,
-    sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), burnin = 1e2, adaptlength = burnin)
+    sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), burnin = 1e2, adaptlength = burnin, forgetrate = 1/2)
 
     d = length(x0) #The dimension
 
@@ -117,10 +117,10 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
 
         #We will "forget" the first half of the epochs
         #Calculate how many terms are used for the estimators
-        nlearn = sum(times[ceil(Int64, iadapt/2):iadapt])/delta
+        nlearn = sum(times[ceil(Int64, iadapt*forgetrate):iadapt])/delta
 
         #Placeholder for mu update
-        mutemp = sum(m[ceil(Int64, iadapt/2):iadapt])/nlearn
+        mutemp = sum(m[ceil(Int64, iadapt*forgetrate):iadapt])/nlearn
 
         #Update sum for covariance estimator
         for x in eachrow(xpath)
@@ -137,7 +137,7 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
         #Try statement included in case of NaNs or other matrix irregularities (such as near-0 eigenvalues)
         try
             #Placeholder for sigma update
-            sigmatemp = nlearn/(nlearn-1)*Symmetric(sum(s2[ceil(Int64, iadapt/2):iadapt])/nlearn - mutemp*mutemp')
+            sigmatemp = nlearn/(nlearn-1)*Symmetric(sum(s2[ceil(Int64, iadapt*forgetrate):iadapt])/nlearn - mutemp*mutemp')
 
             invtemp = inv(sqrt(sigmatemp))
 
@@ -187,7 +187,7 @@ end
 
 
 SBPSAdaptiveGeom = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, Abrent = 1.1, Nbrent = 1, tol = 1e-6,
-    sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), burnin = 1e2, adaptlength = burnin)
+    sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), burnin = 1e2, adaptlength = burnin, forgetrate = 1/2)
 
     d = length(x0) #The dimension
 
@@ -302,10 +302,10 @@ SBPSAdaptiveGeom = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent =
 
         #We will "forget" the first half of the epochs
         #Calculate how many terms are used for the estimators
-        nlearn = sum(times[ceil(Int64, iadapt/2):iadapt])/delta
+        nlearn = sum(times[ceil(Int64, iadapt*forgetrate):iadapt])/delta
 
         #Placeholder for mu update
-        mutemp = sum(m[ceil(Int64, iadapt/2):iadapt])/nlearn
+        mutemp = sum(m[ceil(Int64, iadapt*forgetrate):iadapt])/nlearn
 
         #Update sum for covariance estimator
         for x in eachrow(xpath)
@@ -322,7 +322,7 @@ SBPSAdaptiveGeom = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent =
         #Try statement included in case of NaNs or other matrix irregularities (such as near-0 eigenvalues)
         try
             #Placeholder for sigma update
-            sigmatemp = nlearn/(nlearn-1)*Symmetric(sum(s2[ceil(Int64, iadapt/2):iadapt])/nlearn - mutemp*mutemp')
+            sigmatemp = nlearn/(nlearn-1)*Symmetric(sum(s2[ceil(Int64, iadapt*forgetrate):iadapt])/nlearn - mutemp*mutemp')
 
             invtemp = inv(sqrt(sigmatemp))
 

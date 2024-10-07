@@ -3,7 +3,7 @@ include("Slice.jl")
 include("Optimisation.jl")
 
 SliceAdaptive = function(logf, x0, N, beta, r, R;
-    sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), burnin = 1e2, adaptlength = burnin, steps = 1)
+    sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), burnin = 1e2, adaptlength = burnin, steps = 1, forgetrate = 1/2)
 
     d = length(x0) #The dimension
 
@@ -101,10 +101,10 @@ SliceAdaptive = function(logf, x0, N, beta, r, R;
 
         #We will "forget" the first half of the epochs
         #Calculate how many terms are used for the estimators
-        nlearn = sum(times[ceil(Int64, iadapt/2):iadapt])
+        nlearn = sum(times[ceil(Int64, iadapt*forgetrate):iadapt])
 
         #Placeholder for mu update
-        mutemp = sum(m[ceil(Int64, iadapt/2):iadapt])/nlearn
+        mutemp = sum(m[ceil(Int64, iadapt*forgetrate):iadapt])/nlearn
 
         #Update sum for covariance estimator
         for x in eachrow(xpath)
@@ -121,7 +121,7 @@ SliceAdaptive = function(logf, x0, N, beta, r, R;
         #Try statement included in case of NaNs or other matrix irregularities (such as near-0 eigenvalues)
         try
             #Placeholder for sigma update
-            sigmatemp = nlearn/(nlearn-1)*Symmetric(sum(s2[ceil(Int64, iadapt/2):iadapt])/nlearn - mutemp*mutemp')
+            sigmatemp = nlearn/(nlearn-1)*Symmetric(sum(s2[ceil(Int64, iadapt*forgetrate):iadapt])/nlearn - mutemp*mutemp')
 
             invtemp = inv(sqrt(sigmatemp))
 

@@ -29,20 +29,21 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 7000
+T = 6000
 delta = 0.1
 Tbrent = pi/20
 Epsbrent = 0.01
 Abrent = 1.01
-Nbrent = 10
+Nbrent = 20
 tol = 1e-6
 lambda = 1
 
 beta = 1.1
 burnin = T/2000
 adaptlength = T/2000
-R = 1e9
+R = 1e6
 r = 1e-3
+forgetrate = 3/4
 
 @time out = SBPSAdaptiveGeom(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Abrent, Nbrent, tol, sigma, mu, burnin, adaptlength);
 
