@@ -193,7 +193,7 @@ SBPSAdaptiveGeom = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent =
 
     d == 1 && (x0 = fill(x0, 1))
 
-    n = floor(Int64, big(T/delta))+1 #Total number of observations of the skeleton path
+    n = floor(BigInt, T/delta)+1 #Total number of observations of the skeleton path
 
     w = missing #Initialize w
 
@@ -241,7 +241,11 @@ SBPSAdaptiveGeom = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent =
     nadapt = i
 
     #Indexes of starts of each adaptation in xout. Will be required for moving paths into output
+<<<<<<< HEAD
     adaptstarts = append!([1], cumsum(times)[1:end]/delta .+ 1)
+=======
+    adaptstarts::Vector{Int64} = vcat([1], cumsum(times/delta)[1:end] .+ 1)
+>>>>>>> parent of 593277a (Trying to undo)
 
     #Prepare estimators for mu and sigma
     #m and s2 track sums we will need to iteratively update the estimators
