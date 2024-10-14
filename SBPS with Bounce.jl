@@ -170,6 +170,8 @@ end
 SBPSGeom = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1, Abrent = 1.1, Nbrent = 1, tol = 1e-6,
     sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)))
 
+    delta = convert(Dec64,delta)
+
     z = SPinv(x0; sigma = sigma, mu = mu, isinv = false) #Map to the sphere
 
     d = length(x0) #The dimension
@@ -187,7 +189,7 @@ SBPSGeom = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1, Abr
         v = normalize(v - sum(z.*v)z) #Normalize for regularity
     end
 
-    n = floor(BigInt, T/delta)+1 #Total number of observations of the skeleton path
+    n = floor(BigInt, big(T/delta))+1 #Total number of observations of the skeleton path
 
     #Prepare output
     zout = zeros(n,d+1)

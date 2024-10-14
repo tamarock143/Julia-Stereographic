@@ -191,14 +191,13 @@ SBPSAdaptiveGeom = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent =
     sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), burnin = 1e2, adaptlength = burnin, forgetrate = 1/2,
     correlation = true)
 
-    #Ensure we don't encounter any floating point problems down the line
     delta = convert(Dec64,delta)
 
     d = length(x0) #The dimension
 
     d == 1 && (x0 = fill(x0, 1))
 
-    n = floor(BigInt, T/delta)+1 #Total number of observations of the skeleton path
+    n = floor(Int64, big(T/delta))+1 #Total number of observations of the skeleton path
 
     w = missing #Initialize w
 
@@ -246,7 +245,7 @@ SBPSAdaptiveGeom = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent =
     nadapt = i
 
     #Indexes of starts of each adaptation in xout. Will be required for moving paths into output
-    adaptstarts::Vector{Int64} = vcat([1], cumsum(times/delta)[1:end] .+ 1)
+    adaptstarts::Vector{Int64} = vcat([1], cumsum(times/convert(Dec64,delta))[1:end] .+ 1)
 
     #Prepare estimators for mu and sigma
     #m and s2 track sums we will need to iteratively update the estimators
