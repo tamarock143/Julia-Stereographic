@@ -245,7 +245,7 @@ SBPSAdaptiveGeom = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent =
     nadapt = i
 
     #Indexes of starts of each adaptation in xout. Will be required for moving paths into output
-    adaptstarts::Vector{Int64} = vcat([1], cumsum(times/convert(Dec64,delta))[1:end] .+ 1)
+    adaptstarts::Vector{Int64} = vcat([1], cumsum(times/delta)[1:end] .+ 1)
 
     #Prepare estimators for mu and sigma
     #m and s2 track sums we will need to iteratively update the estimators
