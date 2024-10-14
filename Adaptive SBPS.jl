@@ -1,5 +1,6 @@
 #Import SBPS Simulator
 include("SBPS with Bounce.jl")
+using DecFP
 
 SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, Epsbrent = 0.01, tol = 1e-6,
     sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), burnin = 1e2, adaptlength = burnin, forgetrate = 1/2)
@@ -187,13 +188,16 @@ end
 
 
 SBPSAdaptiveGeom = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, Abrent = 1.1, Nbrent = 1, tol = 1e-6,
-    sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), burnin = 1e2, adaptlength = burnin, forgetrate = 1/2)
+    sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), burnin = 1e2, adaptlength = burnin, forgetrate = 1/2,
+    correlation = true)
+
+    delta = convert(Dec64,delta)
 
     d = length(x0) #The dimension
 
     d == 1 && (x0 = fill(x0, 1))
 
-    n = floor(BigInt, T/delta)+1 #Total number of observations of the skeleton path
+    n = floor(Int64, big(T/delta))+1 #Total number of observations of the skeleton path
 
     w = missing #Initialize w
 
@@ -211,7 +215,7 @@ SBPSAdaptiveGeom = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent =
 
     #Set up adaptation times
     #Include initial burn-in period, ensuring it is a multiple of the skelton path length
-    times = [burnin*ceil(1/delta)delta]
+    times = [ceil(Int64,burnin/delta)*delta]
     i=1
 
     #Variable tracking which power of 2 is used in length of the adaptative epoch
@@ -228,7 +232,7 @@ SBPSAdaptiveGeom = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent =
         power += findfirst(map(x -> 2^x, power:power+beta+1) .>= i^beta) -1
 
         #Add on the next adaptive epoch
-        append!(times, min(adaptlength*ceil(1/delta)delta*2^power, timescheck))
+        append!(times, min(ceil(adaptlength/delta)delta*2^power, timescheck))
 
         #Remove this epoch's length
         timescheck -= times[end]
@@ -241,12 +245,12 @@ SBPSAdaptiveGeom = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent =
     nadapt = i
 
     #Indexes of starts of each adaptation in xout. Will be required for moving paths into output
-    adaptstarts = append!([1], cumsum(times)[1:end]/delta .+ 1)
+    adaptstarts::Vector{Int64} = vcat([1], cumsum(times/delta)[1:end] .+ 1)
 
     #Prepare estimators for mu and sigma
     #m and s2 track sums we will need to iteratively update the estimators
-    m::Vector{Vector{Float64}} = fill(zeros(d), nadapt)
-    s2::Vector{Matrix{Float64}} = fill(zeros(d,d), nadapt)
+    m = fill(zeros(d), nadapt)
+    correlation ? s2 = fill(zeros(d,d), nadapt) : s2 = fill(Diagonal(zeros(d)), nadapt)
 
     #muest and sigmaest are the estimators
     muest = zeros(nadapt+1, d)
@@ -260,6 +264,8 @@ SBPSAdaptiveGeom = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent =
     #Return Robbins-Monro scaling constants
     cout = zeros(nadapt)
 
+    Nevals = zeros(nadapt,2)
+
     #For each adaptive period, run the SBPS simulation with fixed parameter values
     for t in times
         #If we've run the full time, end the process
@@ -268,8 +274,8 @@ SBPSAdaptiveGeom = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent =
         println("Adaptation number: ", iadapt, "/", nadapt, ". Adaptation length: ", t, "\n")
         
         #Run the process with the given parameters
-        @time (zpath,vpath,Tbrent) = SBPSGeom(gradlogf, xout[adaptstarts[iadapt],:], lambda, min(t,left), delta; 
-        w, Tbrent, Abrent, Nbrent, tol, sigma = sigmaest[iadapt], mu = muest[iadapt,:])[(:z, :v, :Tbrent)]
+        @time (zpath,vpath,Nevaltemp,Tbrent) = SBPSGeom(gradlogf, xout[adaptstarts[iadapt],:], lambda, min(t,left), delta; 
+        w, Tbrent, Abrent, Nbrent, tol, sigma = sigmaest[iadapt], mu = muest[iadapt,:])[(:z, :v, :Nevals, :Tbrent)]
 
         #Record final w value
         w = vpath[end,1:d] + vpath[end,d+1]*zpath[end,1:d]/(1 - zpath[end,d+1])
@@ -297,6 +303,9 @@ SBPSAdaptiveGeom = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent =
         #Record this section of the x path
         xout[adaptstarts[iadapt]+1:adaptstarts[iadapt+1],:] = xpath
 
+        #Record number of gradient evaluations
+        Nevals[iadapt,:] = Nevaltemp
+
         #Update column sums
         m[iadapt] = vec(sum(xpath, dims = 1))
 
@@ -307,13 +316,22 @@ SBPSAdaptiveGeom = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent =
         #Placeholder for mu update
         mutemp = sum(m[ceil(Int64, iadapt*forgetrate):iadapt])/nlearn
 
-        #Update sum for covariance estimator
-        for x in eachrow(xpath)
-            s2[iadapt] += x*x'
+        #Do we want to estimate correlation, or just separate covariances?
+        if correlation
+            #Update sum for covariance estimator
+            for x in eachrow(xpath)
+                s2[iadapt] += x*x'
+            end
+        else
+            #Update each sum of squares
+            for x in eachrow(xpath)
+                s2[iadapt] += Diagonal(x.^2)
+            end
         end
 
+        mutemp2 = mutemp.^2
         #Reduce norm of mean estimate if necessary
-        rtemp = sum(mutemp.^2)
+        rtemp = sum(mutemp2)
         rtemp > R^2 && (mutemp *= R/rtemp)
 
         #Output mean estimator
@@ -322,8 +340,11 @@ SBPSAdaptiveGeom = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent =
         #Try statement included in case of NaNs or other matrix irregularities (such as near-0 eigenvalues)
         try
             #Placeholder for sigma update
-            sigmatemp = nlearn/(nlearn-1)*Symmetric(sum(s2[ceil(Int64, iadapt*forgetrate):iadapt])/nlearn - mutemp*mutemp')
-
+            if correlation
+                sigmatemp = nlearn/(nlearn-1)*Symmetric(sum(s2[ceil(Int64, iadapt*forgetrate):iadapt])/nlearn - mutemp*mutemp')
+            else
+                sigmatemp = sum(s2[ceil(Int64, iadapt*forgetrate):iadapt])/(nlearn-1) - Diagonal(mutemp2)
+            end
             invtemp = inv(sqrt(sigmatemp))
 
             #Create set of norms for centered and scaled output
@@ -367,5 +388,5 @@ SBPSAdaptiveGeom = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent =
         iadapt += 1
     end
 
-    return (x = xout, z = zout, v = vout, mu = muest, sigma = sigmaest, times = times, c = cout, Tbrent = Tbrent)
+    return (x = xout, z = zout, v = vout, mu = muest, sigma = sigmaest, times = times, c = cout, Nevals = Nevals, Tbrent = Tbrent)
 end

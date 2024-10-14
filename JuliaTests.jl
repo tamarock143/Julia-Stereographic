@@ -9,6 +9,8 @@ using Plots
 using SpecialFunctions
 using StatsBase
 using JLD
+using Pkg
+using DecFP
 
 d = 200
 sigma = sqrt(d)I(d)
@@ -29,12 +31,12 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 6000
+T = 5500
 delta = 0.1
 Tbrent = pi/20
 Epsbrent = 0.01
 Abrent = 1.01
-Nbrent = 20
+Nbrent = 30
 tol = 1e-6
 lambda = 1
 
@@ -43,9 +45,10 @@ burnin = T/2000
 adaptlength = T/2000
 R = 1e6
 r = 1e-3
-forgetrate = 3/4
+forgetrate = 1/2
 
-@time out = SBPSAdaptiveGeom(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Abrent, Nbrent, tol, sigma, mu, burnin, adaptlength);
+@time out = SBPSAdaptiveGeom(gradlogf, x0, lambda, T, delta, beta, r, R; 
+        Tbrent, Abrent, Nbrent, tol, sigma, mu, burnin, adaptlength, forgetrate);
 
 
 FullSBPS = function()
@@ -120,8 +123,12 @@ gif(myanim, "SBPS.gif")
 plot(0:delta:T,out.z[:,end], label = "z_{d+1}")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
 
-mean(out.z[:,end])
 
+plot(0:delta:T,out.z[:,1], label = "z_{d+1}")
+vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
+
+
+mean(out.z[:,end])
 #savefig("ASBPSz.pdf")
 
 

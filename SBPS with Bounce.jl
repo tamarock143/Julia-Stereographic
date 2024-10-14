@@ -170,6 +170,8 @@ end
 SBPSGeom = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1, Abrent = 1.1, Nbrent = 1, tol = 1e-6,
     sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)))
 
+    delta = convert(Dec64,delta)
+
     z = SPinv(x0; sigma = sigma, mu = mu, isinv = false) #Map to the sphere
 
     d = length(x0) #The dimension
@@ -187,7 +189,7 @@ SBPSGeom = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1, Abr
         v = normalize(v - sum(z.*v)z) #Normalize for regularity
     end
 
-    n = floor(BigInt, T/delta)+1 #Total number of observations of the skeleton path
+    n = floor(BigInt, big(T/delta))+1 #Total number of observations of the skeleton path
 
     #Prepare output
     zout = zeros(n,d+1)
@@ -231,15 +233,16 @@ SBPSGeom = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1, Abr
             #For step function upper bound, divide into Nbrent windows of equal length
             twindows = repeat([Tbrent/Nbrent], Nbrent)
             M = zeros(Nbrent)
+            tempevals = zeros(Nbrent)
 
-            for i in 1:Nbrent
+            Threads.@threads for i in 1:Nbrent
                 #Find upper bound M on the bounce rate for current chunks
                 #We flip the sign of the bound because we are minimising -lambda(z,v)
-                (M[i],tempevals) = (-1,1) .* Brent(s -> bouncerate(s,z,v; sigma = sigma, mu = mu)[1],
+                (M[i],tempevals[i]) = (-1,1) .* Brent(s -> bouncerate(s,z,v; sigma = sigma, mu = mu)[1],
                         Bmin + (i-1)*Tbrent/Nbrent, Bmin + i*Tbrent/Nbrent, tol; countevals = true)[2:3]
-                
-                Nopt += tempevals #Brent's method outputs number of gradient evaluations
             end
+
+            Nopt += sum(tempevals) #Brent's method outputs number of gradient evaluations
 
             #Set the rate upper bounds to be positive
             map!(m -> max(0,m), M, M)
