@@ -242,7 +242,7 @@ SBPSAdaptiveGeom = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent =
 
     #Indexes of starts of each adaptation in xout. Will be required for moving paths into output
 
-    adaptstarts = vcat([1], cumsum(times)[1:end]/delta .+ 1)
+    adaptstarts::Vector{Int64} = vcat([1], cumsum(times)[1:end]/delta .+ 1)
 
     #Prepare estimators for mu and sigma
     #m and s2 track sums we will need to iteratively update the estimators
@@ -261,6 +261,9 @@ SBPSAdaptiveGeom = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent =
     #Return Robbins-Monro scaling constants
     cout = zeros(nadapt)
 
+    #Return number of gradient evaluations
+    Nevals = zeros(nadapt,2)
+
     #For each adaptive period, run the SBPS simulation with fixed parameter values
     for t in times
         #If we've run the full time, end the process
@@ -269,8 +272,8 @@ SBPSAdaptiveGeom = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent =
         println("Adaptation number: ", iadapt, "/", nadapt, ". Adaptation length: ", t, "\n")
         
         #Run the process with the given parameters
-        @time (zpath,vpath,Tbrent) = SBPSGeom(gradlogf, xout[adaptstarts[iadapt],:], lambda, min(t,left), delta; 
-        w, Tbrent, Abrent, Nbrent, tol, sigma = sigmaest[iadapt], mu = muest[iadapt,:])[(:z, :v, :Tbrent)]
+        @time (zpath,vpath,Nevals[iadapt,:],Tbrent) = SBPSGeom(gradlogf, xout[adaptstarts[iadapt],:], lambda, min(t,left), delta; 
+        w, Tbrent, Abrent, Nbrent, tol, sigma = sigmaest[iadapt], mu = muest[iadapt,:])[(:z, :v, :Nevals, :Tbrent)]
 
         #Record final w value
         w = vpath[end,1:d] + vpath[end,d+1]*zpath[end,1:d]/(1 - zpath[end,d+1])
@@ -368,5 +371,5 @@ SBPSAdaptiveGeom = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent =
         iadapt += 1
     end
 
-    return (x = xout, z = zout, v = vout, mu = muest, sigma = sigmaest, times = times, c = cout, Tbrent = Tbrent)
+    return (x = xout, z = zout, v = vout, mu = muest, sigma = sigmaest, times = times, c = cout, Nevals = Nevals, Tbrent = Tbrent)
 end

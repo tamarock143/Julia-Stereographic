@@ -26,10 +26,12 @@ d > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.
 #This is here to precalculate the gradient function
 gradlogf(x0)
 
+ForwardDiff.hessian(f,x0)
+
 
 ### SBPS Testing
 
-T = 6000
+T = 500
 delta = 0.1
 Tbrent = pi/20
 Epsbrent = 0.01
@@ -39,14 +41,16 @@ tol = 1e-6
 lambda = 1
 
 beta = 1.1
-burnin = T/2000
-adaptlength = T/2000
+burnin = T/200
+adaptlength = T/200
 R = 1e6
 r = 1e-3
 forgetrate = 3/4
 
 @time out = SBPSAdaptiveGeom(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Abrent, Nbrent, tol, sigma, mu, burnin, adaptlength, forgetrate);
 @save "out.jld" 
+
+out = load("out.jld")["out"]
 
 FullSBPS = function()
     (zout,vout,eventsout,Nevals) = SBPSSimulator(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, Epsbrent = Epsbrent, tol = tol,
@@ -123,6 +127,8 @@ vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
 mean(out.z[:,end])
 
 #savefig("ASBPSz.pdf")
+
+plot(sum(out.Nevals, dims=2)./out.times)
 
 
 ### SSS Tests
