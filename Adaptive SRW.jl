@@ -136,13 +136,9 @@ SRWAdaptive = function(logf, x0, h2, N, beta, r, R;
             #If the estimators are correct, should get c=d
             #For this, we use the Robbins-Monro algorithm (note this requires an increasing functional)
 
-            #latf(theta) = mean(x -> (x - theta)/(x + theta), xnorms)
-            #latgrad(theta) = mean(x -> -2x/(x - theta)^2, xnorms)
-            #c = Newton(latf, latgrad, d, tol)
-
             latf(x,theta) = -(x - theta)/(x + theta) #Negative Latitude of a given z at position ||x||^2/theta
             c = RobMonro(latf, xnorms, d, 1, 1e6; lower = (10d)^-10, upper = (10Float64(d))^10)
-            println(sqrt(c/d))
+            #println(sqrt(c/d))
             
             #Scale the covariance
             sigmatemp *= c

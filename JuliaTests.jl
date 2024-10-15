@@ -29,7 +29,7 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 5000
+T = 6000
 delta = 0.1
 Tbrent = pi/20
 Epsbrent = 0.01
@@ -45,8 +45,8 @@ R = 1e6
 r = 1e-3
 forgetrate = 1/2
 
-@time out = SBPSAdaptiveGeom(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Abrent, Nbrent, tol, sigma, mu, burnin, adaptlength);
-
+@time out = SBPSAdaptiveGeom(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Abrent, Nbrent, tol, sigma, mu, burnin, adaptlength, forgetrate);
+@save "out.jld" 
 
 FullSBPS = function()
     (zout,vout,eventsout,Nevals) = SBPSSimulator(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, Epsbrent = Epsbrent, tol = tol,
@@ -117,7 +117,7 @@ gif(myanim, "SBPS.gif")
 
 #plot(out.x[:,1],out.x[:,2])
 
-plot(0:delta:T,out.z[:,end], label = "z_{d+1}")
+plot(0:delta:T,out.z[:,1], label = "z_{d+1}")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
 
 mean(out.z[:,end])
@@ -127,16 +127,16 @@ mean(out.z[:,end])
 
 ### SSS Tests
 
-Nslice::Int64 = 6e2
-stepsslice::Int64 = 1
+Nslice::Int64 = 1.3e5
+stepsslice::Int64 = 10
 
 beta = 1.1
-burninslice = Nslice
+burninslice = Nslice/2000
 adaptlengthslice = Nslice/2000
 R = 1e9
 r = 1e-3
 
-@time sliceout = SliceAdaptive(f, x0, Nslice, beta, r, R; sigma, mu, burnin = burninslice, adaptlength = adaptlengthslice, steps = stepsslice);
+@time sliceout = SliceAdaptive(f, x0, Nslice, beta, r, R; sigma, mu, burnin = burninslice, adaptlength = adaptlengthslice, steps = stepsslice, forgetrate = forgetrate);
 
 #@time sliceout = SliceSimulator(f, x0, Nslice; sigma, mu);
 
