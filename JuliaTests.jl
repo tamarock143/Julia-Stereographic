@@ -10,9 +10,9 @@ using SpecialFunctions
 using StatsBase
 using JLD
 
-d = 200
+d = 1
 sigma = sqrt(d)I(d)
-mu = zeros(d) .+ 1e3
+mu = zeros(d)
 
 nu = 2
 
@@ -21,13 +21,17 @@ d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]))[1]
 f = x -> -(nu+d)/2*log(nu + sum(x.^2))
 #f = x -> -sum(x.^2)/2
 
+#Set up gradient
 d > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
 
 #This is here to precalculate the gradient function
 gradlogf(x0)
 
-ForwardDiff.hessian(f,x0)
+#Set up hessian
+d > 1 ? hessianlogf = x -> ForwardDiff.hessian(f,x0) : hessianlogf = x -> ForwardDiff.derivative(gradlogf,x)
 
+#This is here to precalculate the hessian function
+hessianlogf(x0)
 
 ### SBPS Testing
 

@@ -157,6 +157,31 @@ Brent = function (f,a,b,tol; countevals = false)
     (countevals ? (return(x,fx,Nevals)) : return(x,fx))
 end
 
+#Tangents method for finding lower bounds of 1 dimensional functions with gradients
+#Most efficient when function evaluations are provided directly
+#<ust provide either function evaluations or raw functions
+Tangentmin = function (t1, t2; ft1 = missing, ft2 = missing, gradt1 = missing, gradt2 = missing, f = missing, gradf = missing)
+    #Calculate values and radients if not specified
+    ismissing(ft1) && (ft1 = f(t1))
+    ismissing(ft2) && (ft2 = f(t2))
+    ismissing(gradt1) && (gradt1 = gradf(t1))
+    ismissing(gradt2) && (gradt2 = gradf(t2))
+
+    #Calculate intercept point of tangents and corresponding lower bound
+    x = (ft2 - ft1 + gradt1*t1 - gradt2*t2)/(gradt1 - gradt2)
+
+    #If intersection is outside the window, min is at endpoints
+    if x < t1 || x > t2
+        return min(ft1,ft2)
+    else
+        #Caluculate height at intersection
+        m = gradx1*(x - t1) + ft1
+
+        #Return the smallest of the three values
+        return min(m,ft1,ft2)
+    end
+end
+
 #Newton's Method for root finding (1 dimensional function)
 Newton = function (f, gradf, x, tol)
     #Calculate gradf(x)
