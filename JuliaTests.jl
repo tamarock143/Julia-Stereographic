@@ -43,7 +43,7 @@ burnin = T/2000
 adaptlength = T/2000
 R = 1e6
 r = 1e-3
-forgetrate = 1/2
+forgetrate = 3/4
 
 @time out = SBPSAdaptiveGeom(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Abrent, Nbrent, tol, sigma, mu, burnin, adaptlength, forgetrate);
 @save "out.jld" 
