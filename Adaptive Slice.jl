@@ -70,6 +70,9 @@ SliceAdaptive = function(logf, x0, N, beta, r, R;
     #Return Robbins-Monro scaling constants
     cout = zeros(nadapt)
 
+    #Return the number of proposals
+    Nprop = zeros(nadapt)
+
     #For each adaptive period, run the SBPS simulation with fixed parameter values
     for t in times
         #If we've run the full time, end the process
@@ -79,8 +82,8 @@ SliceAdaptive = function(logf, x0, N, beta, r, R;
         
         #Run the process with the given parameters
         #The -(iadapt !=1) term is a workaround for indexing
-        @time (xpath,zpath) = SliceSimulator(logf, xout[adaptstarts[iadapt]-(iadapt !=1),:], min(t,left); 
-        sigma = sigmaest[iadapt], mu = muest[iadapt,:], includefirst = (iadapt == 1), steps = steps)
+        @time (xpath,zpath,Nprop[iadapt]) = SliceSimulator(logf, xout[adaptstarts[iadapt]-(iadapt !=1),:], min(t,left); 
+        sigma = sigmaest[iadapt], mu = muest[iadapt,:], includefirst = (iadapt == 1), steps = steps)[(:x,:z,:Nprop)]
 
         #Update how much time is left
         left >= t ? left -= t : left = 0
@@ -166,5 +169,5 @@ SliceAdaptive = function(logf, x0, N, beta, r, R;
         iadapt += 1
     end
 
-    return (x = xout, z = zout, mu = muest, sigma = sigmaest, times = times, c = cout)
+    return (x = xout, z = zout, mu = muest, sigma = sigmaest, times = times, c = cout, Nprop = Nprop)
 end
