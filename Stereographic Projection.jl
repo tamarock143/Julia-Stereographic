@@ -160,37 +160,6 @@ SBPSRate = function (gradlogf) #Note this function requires the ∇log(f) alread
     return lambda_S
 end
 
-#Derivative of SBPS rate
-#Again, need to take -derivative for the derivative of true rate
-SBPSRateDeriv = function (hessianlogf,gradlogf)
-    #Output is the function Dlambda
-    lambdaderiv = function (t,z0,v0; sigma = sqrt(length(z)-1)I(length(z)-1), mu = zeros(length(z)-1))
-        #Move t time units forward from z0, v0
-        (z,v) = (z0*cos(t) + v0*sin(t), v0*cos(t) - z0*sin(t))
-
-        #Project to Euclidean space
-        x = SP(z; sigma, mu)
-        d = length(x)
-
-        #Perform the rate calculation
-        #Need dimension check for d=1 case
-        d > 1 ? xgrad = gradlogf(x) : xgrad = gradlogf(x[1])
-
-        #Perform the hessian calculation
-        d > 1 ? hessx = hessianlogf(x) : hessx = hessianlogf(x[1])
-
-        #Calculate gradient of density on sphere
-        zgrad = vcat(sigma*xgrad, d + sum((x.-mu).*xgrad))/(1-z[end])
-
-        #Calculate dx/dt
-        dxdt = sigma*(v[1:end-1] + v[end]*z[1:end-1]/(1-z[end]))/(1-z[end])
-
-        #Return the rate, the gradient and the derivative of the rate
-        return (rate = sum(v.*zgrad), grad = zgrad, 
-        derivative = -sum(z.*zgrad) + sum(v.*vcat(sigma*hessx*dxdt, v[end]*sum((x.-mu).*xgrad)/(1-z[end])^2 + sum(dxdt.*xgrad)/(1-z[end]) + sum((x.-mu).*(hessx*dxdt))/(1-z[end]))))
-    end
-end
-
 #Simulate from a Poisson process with a step function rate
 #Takes a sequence of levels and interval lengths
 #Be aware, function mutates lambda and t

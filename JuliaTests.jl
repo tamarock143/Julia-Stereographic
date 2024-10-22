@@ -10,7 +10,7 @@ using SpecialFunctions
 using StatsBase
 using JLD
 
-d = 1
+d = 10
 sigma = sqrt(d)I(d)
 mu = zeros(d)
 
@@ -37,7 +37,7 @@ hessianlogf(x0)
 
 T = 500
 delta = 0.1
-Tbrent = pi/20
+Tbrent = pi/2
 Epsbrent = 0.01
 Abrent = 1.01
 Nbrent = 20
