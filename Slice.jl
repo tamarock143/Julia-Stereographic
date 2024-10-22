@@ -32,6 +32,8 @@ SliceSimulator = function(logf, x0, N; sigma = sqrt(length(x0))I(length(x0)), mu
 
     theta = undef #Predefining output angle
 
+    Nprop = 0 #Predefine number of proposed points
+
     for n in indexes
         #Print iteration number
         print("\rStep number: $n")
@@ -44,6 +46,8 @@ SliceSimulator = function(logf, x0, N; sigma = sqrt(length(x0))I(length(x0)), mu
             vout[n-includefirst,:] .= v
 
             theta = 2pi*rand() #Sample initial angle around the geodesic
+
+            Nprop += 1 #Increment number of proposals
 
             #Initialise bracketing interval for shrinkage
             thetamin = theta - 2pi
@@ -64,6 +68,8 @@ SliceSimulator = function(logf, x0, N; sigma = sqrt(length(x0))I(length(x0)), mu
 
                 #Resample position to be uniform inside the new interval
                 theta = (thetamax - thetamin)rand() + thetamin
+                
+                Nprop += 1 #Increment number of proposals
 
                 zprime = normalize(z*cos(theta) + v*sin(theta)) #New proposed point
                 xprime = SP(zprime; sigma = sigma, mu = mu) #Project to Euclidean Space
@@ -85,5 +91,5 @@ SliceSimulator = function(logf, x0, N; sigma = sqrt(length(x0))I(length(x0)), mu
     end
     println()
 
-    return (x = xout, z = zout, theta = thetaout, v = vout)
+    return (x = xout, z = zout, theta = thetaout, v = vout, Nprop = Nprop)
 end
