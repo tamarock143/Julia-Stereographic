@@ -10,7 +10,7 @@ using SpecialFunctions
 using StatsBase
 using JLD
 
-d = 30
+d = 200
 sigma = sqrt(d)I(d)
 mu = zeros(d)
 
@@ -29,8 +29,8 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 500
-delta = 0.0005
+T = 10000
+delta = 0.1
 Tbrent = pi/2
 Epsbrent = 0.01
 Abrent = 1.01
@@ -46,7 +46,7 @@ r = 1e-3
 forgetrate = 3/4
 
 @time out = SBPSAdaptiveGeom(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Abrent, Nbrent, tol, sigma, mu, burnin, adaptlength, forgetrate);
-@save "out.jld" 
+save("out.jld","out",out)
 
 out = load("out.jld")["out"]
 
@@ -83,11 +83,11 @@ plot(0:delta:T,out.x[:,1], label = "x1")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
 plot!(0:delta:T,out.x[:,2], label = "x2")
 
-plot((0:10:10000)*delta,autocor(out.x[:,1], 0:10:10000), label = "Autocorrelation of x_1")
+plot((0:1:100)*delta,autocor(out.x[:,1], 0:1:100), label = "Autocorrelation of x_1")
 plot!(x -> 0, lwd = 3, label = "")
 
 
-plot((0:10:10000)*delta,autocor(out.z[:,end], 0:10:10000), label = "Autocorrelation of z_{d+1}")
+plot((0:1:2000)*delta,autocor(out.z[:,end], 0:1:2000), label = "Autocorrelation of z_{d+1}")
 plot!(x -> 0, lwd = 3, label = "")
 
 #savefig("SBPSautocor2.pdf")
@@ -121,8 +121,8 @@ plot(sum(out.Nevals, dims=2)./out.times)
 
 ### SSS Tests
 
-Nslice::Int64 = 1e5
-stepsslice::Int64 = 1
+Nslice::Int64 = 100000
+stepsslice::Int64 = 100
 
 beta = 1.1
 burninslice = Nslice/200
@@ -132,7 +132,9 @@ r = 1e-3
 
 @time sliceout = SliceAdaptive(f, x0, Nslice, beta, r, R; sigma, mu, burnin = burninslice, adaptlength = adaptlengthslice, steps = stepsslice, forgetrate = forgetrate);
 
-#@time sliceout = SliceSimulator(f, x0, Nslice; sigma, mu);
+#@time sliceout = SliceSimulator(f, x0, Nslice; sigma, mu, steps = stepsslice);
+save("sliceout.jld","sliceout",sliceout)
+sliceout = load("sliceout.jld")["sliceout"]
 
 #Plot comparison against the true distribution
 #p(x) = 1/sqrt(2pi)*exp(-x^2/2)
@@ -150,13 +152,13 @@ plot(1:stepsslice:Nslice*stepsslice,sliceout.x[:,1], label = "x1")
 vline!(stepsslice*cumsum(sliceout.times[1:end-1]), label = "Adaptations", lw = 0.5)
 
 
-plot(autocor(sliceout.x[:,1], 0:1000), label="Autocorrelation of x_1")
+plot((0:1:100)*stepsslice,autocor(sliceout.x[:,1], (0:1:100)), label="Autocorrelation of x_1")
 plot!(x -> 0, lwd = 3, label="")
 
-plot(autocor(sliceout.z[:,end], 0:1000), label="Autocorrelation of z_{d+1}")
+plot((0:1:2000)*stepsslice,autocor(sliceout.z[:,end], (0:1:2000)), label="Autocorrelation of z_{d+1}")
 plot!(x -> 0, lwd = 3, label="")
 
-#savefig("SSSautocor2.pdf")
+#savefig("SSSautocor1.pdf")
 
 plot(1:stepsslice:Nslice*stepsslice,sliceout.z[:,end], label = "z_{d+1}")
 vline!(stepsslice*cumsum(sliceout.times[1:end-1]), label = "Adaptations", lw = 0.5)
@@ -179,9 +181,9 @@ gif(myanim, "SSS.gif")
 
 ### SRW Tests
 
-h2 = 1.5d^-1
-Nsrw::Int64 = 3e5
-stepssrw::Int64 = 1
+h2 = 100d^-1
+Nsrw::Int64 = 100000
+stepssrw::Int64 = 350
 
 beta = 1.1
 burninsrw = Nsrw
@@ -191,7 +193,11 @@ r = 1e-3
 
 @time srwout = SRWAdaptive(f, x0, h2, Nsrw, beta, r, R; sigma, mu,burnin = burninsrw, adaptlength = adaptlengthsrw, steps = stepssrw);
 
-#@time srwout = SRWSimulator(f, x0, h2, Nsrw; sigma, mu);
+#@time srwout = SRWSimulator(f, x0, h2, Nsrw; sigma, mu, steps = stepssrw);
+srwout.a
+
+save("srwout.jld","sliceout",sliceout)
+sliceout = load("srwout.jld")["sliceout"]
 
 #p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
@@ -203,17 +209,17 @@ plot!(q, label= "t", lw=3)
 xlabel!("x")
 ylabel!("P(x)")
 
-plot(1:stepssrw:1500000*stepssrw, srwout.x[1:1500000,1], label = "x1")
+plot((1:Nsrw)*stepssrw, srwout.x[:,1], label = "x1")
 vline!(stepssrw*cumsum(srwout.times[1:end-7]), label = "Adaptations", lw = 0.5)
 
-plot(1:stepssrw:1500000*stepssrw,srwout.z[1:1500000,end], label = "z_{d+1}", legend=:bottom)
+plot((1:Nsrw)*stepssrw,srwout.z[:,end], label = "z_{d+1}", legend=:bottom)
 vline!(stepssrw*cumsum(srwout.times[1:end-7]), label = "Adaptations", lw = 0.5)
 
 
-plot(0:3:3000,autocor(srwout.x[:,1], 0:3:3000), label="Autocorrelation of x_1")
+plot((0:1:200)*stepssrw,autocor(srwout.x[:,1], 0:1:200), label="Autocorrelation of x_1")
 plot!(x -> 0, lwd = 3, label="")
 
-plot(0:3:3000,autocor(srwout.z[:,end], 0:3:3000), label="Autocorrelation of z_{d+1}")
+plot((0:1:2000)*stepssrw,autocor(srwout.z[:,end], 0:1:2000), label="Autocorrelation of z_{d+1}")
 plot!(x -> 0, lwd = 3, label="")
 
 #savefig("SRWautocor2.pdf")
@@ -240,7 +246,7 @@ gif(myanim, "SRW.gif")
 hmcdelta = 1.8d^(-1/4)
 L = 5
 d > 1 ? M = I(d) : M = 1
-Nhmc::Int64 = 2.5e5 #~1000sec
+Nhmc::Int64 = 100000 #~1000sec
 hmcsteps = 1
 
 @time hmcout = HMC(f, gradlogf, x0, Nhmc, hmcdelta, L; M = M, steps = hmcsteps);
@@ -263,10 +269,10 @@ for i in 1:Nhmc
     hmcoutz[i,:] = SPinv(hmcout.x[i,:]; sigma = sigma, mu = mu)
 end
 
-plot(0:2:2000,autocor(hmcout.x[:,1], 0:2:2000), label="Autocorrelation of x_1")
+plot(0:1:100,autocor(hmcout.x[:,1], 0:1:100), label="Autocorrelation of x_1")
 plot!(x -> 0, lwd = 3, label="")
 
-plot(0:2:2000,autocor(hmcoutz[:,end], 0:2:2000), label="Autocorrelation of z_{d+1}")
+plot(0:1:2000,autocor(hmcoutz[:,end], 0:1:2000), label="Autocorrelation of z_{d+1}")
 plot!(x -> 0, lwd = 3, label="")
 
 
