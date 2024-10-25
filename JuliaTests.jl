@@ -10,11 +10,11 @@ using SpecialFunctions
 using StatsBase
 using JLD
 
-d = 10
+d = 30
 sigma = sqrt(d)I(d)
 mu = zeros(d)
 
-nu = 2
+nu = 3
 
 d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]))[1]
 
@@ -27,20 +27,14 @@ d > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.
 #This is here to precalculate the gradient function
 gradlogf(x0)
 
-#Set up hessian
-d > 1 ? hessianlogf = x -> ForwardDiff.hessian(f,x0) : hessianlogf = x -> ForwardDiff.derivative(gradlogf,x)
-
-#This is here to precalculate the hessian function
-hessianlogf(x0)
-
 ### SBPS Testing
 
 T = 500
-delta = 0.1
+delta = 0.0005
 Tbrent = pi/2
 Epsbrent = 0.01
 Abrent = 1.01
-Nbrent = 20
+Nbrent = 5
 tol = 1e-6
 lambda = 1
 
@@ -55,21 +49,6 @@ forgetrate = 3/4
 @save "out.jld" 
 
 out = load("out.jld")["out"]
-
-FullSBPS = function()
-    (zout,vout,eventsout,Nevals) = SBPSSimulator(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, Epsbrent = Epsbrent, tol = tol,
-    sigma = sigma, mu = mu);
-
-    n = floor(BigInt, T/delta)+1 #Total number of observations of the skeleton path
-    xout = zeros(n,d)
-
-    #Project each entry back to R^d
-    for i in 1:n
-        xout[i,:] = SP(zout[i,:]; sigma = sigma, mu = mu)
-    end
-
-    return (z = zout, v = vout, x = xout, events = eventsout, Nevals = Nevals)
-end
 
 FullSBPSGeom = function()
     (zout,vout,eventsout,Nevals,Tout) = SBPSGeom(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, Abrent = Abrent, Nbrent = Nbrent, tol = tol,
@@ -86,15 +65,13 @@ FullSBPSGeom = function()
     return (z = zout, v = vout, x = xout, events = eventsout, Nevals = Nevals, Tbrent = Tout)
 end
 
-#@time out = FullSBPS()
-
-#@time out = FullSBPSGeom()
+#@time out = FullSBPSGeom();
 
 #Plot comparison against the true distribution
 p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 #q(x) = 1/sqrt(2pi*sigmaf)*exp(-x^2/2sigmaf)
 q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
-b_range = range(-8,8, length=101)
+b_range = range(-10,10, length=101)
 
 histogram(out.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
 plot!(p, label= "N(0,1)", lw=3)
@@ -106,7 +83,14 @@ plot(0:delta:T,out.x[:,1], label = "x1")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
 plot!(0:delta:T,out.x[:,2], label = "x2")
 
-#savefig("ASBPSz.pdf")
+plot((0:10:10000)*delta,autocor(out.x[:,1], 0:10:10000), label = "Autocorrelation of x_1")
+plot!(x -> 0, lwd = 3, label = "")
+
+
+plot((0:10:10000)*delta,autocor(out.z[:,end], 0:10:10000), label = "Autocorrelation of z_{d+1}")
+plot!(x -> 0, lwd = 3, label = "")
+
+#savefig("SBPSautocor2.pdf")
 
 #map(x -> sum(x -> x^2, x - mu), eachrow(out.mu))
 #map(x -> sum(x -> x^2, eigen(x - sqrt(d)I(d)).values), out.sigma)
@@ -125,7 +109,7 @@ gif(myanim, "SBPS.gif")
 
 #plot(out.x[:,1],out.x[:,2])
 
-plot(0:delta:T,out.z[:,1], label = "z_{d+1}")
+plot(0:delta:T,out.z[:,end], label = "z_{d+1}")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
 
 mean(out.z[:,end])
@@ -137,12 +121,12 @@ plot(sum(out.Nevals, dims=2)./out.times)
 
 ### SSS Tests
 
-Nslice::Int64 = 1.3e5
-stepsslice::Int64 = 10
+Nslice::Int64 = 1e5
+stepsslice::Int64 = 1
 
 beta = 1.1
-burninslice = Nslice/2000
-adaptlengthslice = Nslice/2000
+burninslice = Nslice/200
+adaptlengthslice = Nslice/200
 R = 1e9
 r = 1e-3
 
@@ -154,10 +138,10 @@ r = 1e-3
 #p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 #q(x) = 1/sqrt(2pi*sigmaf)*exp(-x^2/2sigmaf)
 q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
-b_range = range(-8,8, length=101)
+b_range = range(-10,10, length=101)
 
 histogram(sliceout.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
-#plot!(p, label= "N(0,1)", lw=3)
+plot!(p, label= "N(0,1)", lw=3)
 plot!(q, label= "t", lw=3)
 xlabel!("x")
 ylabel!("P(x)")
@@ -165,15 +149,20 @@ ylabel!("P(x)")
 plot(1:stepsslice:Nslice*stepsslice,sliceout.x[:,1], label = "x1")
 vline!(stepsslice*cumsum(sliceout.times[1:end-1]), label = "Adaptations", lw = 0.5)
 
-#savefig("ASSSx.pdf")
+
+plot(autocor(sliceout.x[:,1], 0:1000), label="Autocorrelation of x_1")
+plot!(x -> 0, lwd = 3, label="")
+
+plot(autocor(sliceout.z[:,end], 0:1000), label="Autocorrelation of z_{d+1}")
+plot!(x -> 0, lwd = 3, label="")
+
+#savefig("SSSautocor2.pdf")
 
 plot(1:stepsslice:Nslice*stepsslice,sliceout.z[:,end], label = "z_{d+1}")
 vline!(stepsslice*cumsum(sliceout.times[1:end-1]), label = "Adaptations", lw = 0.5)
 
 #map(x -> sum(x -> x^2, x), eachrow(sliceout.mu))
 #plot(log.(map(x -> sum(x -> x^2, eigen(x - sqrt(d)I(d)).values), sliceout.sigma)))
-
-plot(autocor(sliceout.x[:,1].^2))
 
 cov(sliceout.x[floor(Int64,2/3*10^5):end,:])
 
@@ -190,8 +179,8 @@ gif(myanim, "SSS.gif")
 
 ### SRW Tests
 
-h2 = d^-1
-Nsrw::Int64 = 6e2
+h2 = 1.5d^-1
+Nsrw::Int64 = 3e5
 stepssrw::Int64 = 1
 
 beta = 1.1
@@ -220,6 +209,15 @@ vline!(stepssrw*cumsum(srwout.times[1:end-7]), label = "Adaptations", lw = 0.5)
 plot(1:stepssrw:1500000*stepssrw,srwout.z[1:1500000,end], label = "z_{d+1}", legend=:bottom)
 vline!(stepssrw*cumsum(srwout.times[1:end-7]), label = "Adaptations", lw = 0.5)
 
+
+plot(0:3:3000,autocor(srwout.x[:,1], 0:3:3000), label="Autocorrelation of x_1")
+plot!(x -> 0, lwd = 3, label="")
+
+plot(0:3:3000,autocor(srwout.z[:,end], 0:3:3000), label="Autocorrelation of z_{d+1}")
+plot!(x -> 0, lwd = 3, label="")
+
+#savefig("SRWautocor2.pdf")
+
 #savefig("ASRWz.pdf")
 
 #plot(srwout.x[:,1],srwout.x[:,2])
@@ -239,28 +237,40 @@ gif(myanim, "SRW.gif")
 
 ### HMC Testing
 
-hmcdelta = d^(-1/4)
+hmcdelta = 1.8d^(-1/4)
 L = 5
 d > 1 ? M = I(d) : M = 1
-Nhmc::Int64 = 1e5 #~1000sec
-hmcsteps = 100
+Nhmc::Int64 = 2.5e5 #~1000sec
+hmcsteps = 1
 
 @time hmcout = HMC(f, gradlogf, x0, Nhmc, hmcdelta, L; M = M, steps = hmcsteps);
 hmcout.a
 #Plot comparison against the true distribution
 #p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
-b_range = range(-8,8, length=101)
+b_range = range(-10,10, length=101)
 
 histogram(hmcout.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
-#plot!([q p], label= ["t" "N(0,1)"], lw=3)
-plot!(q, label= "t", lw = 3)
+plot!([p q], label= ["N(0,1)" "t"], lw=3)
+#plot!(q, label= "t", lw = 3)
 xlabel!("x")
 ylabel!("P(x)")
 
 plot(1:hmcsteps:hmcsteps*Nhmc,hmcout.x[:,1], label = "x1")
 
-#savefig("AHMCnorms.pdf")
+hmcoutz = zeros(Nhmc,d+1)
+for i in 1:Nhmc
+    hmcoutz[i,:] = SPinv(hmcout.x[i,:]; sigma = sigma, mu = mu)
+end
+
+plot(0:2:2000,autocor(hmcout.x[:,1], 0:2:2000), label="Autocorrelation of x_1")
+plot!(x -> 0, lwd = 3, label="")
+
+plot(0:2:2000,autocor(hmcoutz[:,end], 0:2:2000), label="Autocorrelation of z_{d+1}")
+plot!(x -> 0, lwd = 3, label="")
+
+
+#savefig("HMCautocor2.pdf")
 
 
 #plot(hmcout.x[:,1],hmcout.x[:,2])
