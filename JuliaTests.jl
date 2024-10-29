@@ -10,7 +10,7 @@ using SpecialFunctions
 using StatsBase
 using JLD
 
-d = 200
+d = 50
 sigma = sqrt(d)I(d)
 mu = zeros(d)
 
@@ -18,7 +18,12 @@ nu = 3
 
 d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]))[1]
 
-f = x -> -(nu+d)/2*log(nu + sum(x.^2))
+banana(x; b=1) = vcat(x[1] + b*x[2]^2,x[2:end])
+
+test = x -> -(nu+d)/2*log(nu + sum(x.^2))
+
+f = x -> test(banana(x))
+
 #f = x -> -sum(x.^2)/2
 
 #Set up gradient
@@ -39,8 +44,8 @@ tol = 1e-6
 lambda = 1
 
 beta = 1.1
-burnin = T/200
-adaptlength = T/200
+burnin = T/2000
+adaptlength = T/2000
 R = 1e6
 r = 1e-3
 forgetrate = 3/4
@@ -81,7 +86,7 @@ ylabel!("P(x)")
 
 plot(0:delta:T,out.x[:,1], label = "x1")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
-plot!(0:delta:T,out.x[:,2], label = "x2")
+plot!(0:delta:T,out.x[:,3], label = "x2")
 
 plot((0:1:100)*delta,autocor(out.x[:,1], 0:1:100), label = "Autocorrelation of x_1")
 plot!(x -> 0, lwd = 3, label = "")
@@ -108,6 +113,7 @@ end every 50
 gif(myanim, "SBPS.gif")
 
 #plot(out.x[:,1],out.x[:,2])
+histogram2d(out.x[:,1], out.x[:,2], bins=(1000,1000),normalize=:pdf)
 
 plot(0:delta:T,out.z[:,end], label = "z_{d+1}")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
