@@ -86,13 +86,13 @@ ylabel!("P(x)")
 
 plot(0:delta:T,out.x[:,1], label = "x1")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
-plot!(0:delta:T,out.x[:,3], label = "x2")
+plot!(0:delta:T,out.x[:,2], label = "x2")
 
-plot((0:1:100)*delta,autocor(out.x[:,1], 0:1:100), label = "Autocorrelation of x_1")
+plot((0:1:3000)*delta,autocor(out.x[:,1], 0:1:3000), label = "Autocorrelation of x_1")
 plot!(x -> 0, lwd = 3, label = "")
 
 
-plot((0:1:2000)*delta,autocor(out.z[:,end], 0:1:2000), label = "Autocorrelation of z_{d+1}")
+plot((0:1:50000)*delta,autocor(out.z[:,end], 0:1:50000), label = "Autocorrelation of z_{d+1}")
 plot!(x -> 0, lwd = 3, label = "")
 
 #savefig("SBPSautocor2.pdf")
@@ -113,7 +113,7 @@ end every 50
 gif(myanim, "SBPS.gif")
 
 #plot(out.x[:,1],out.x[:,2])
-histogram2d(out.x[:,1], out.x[:,2], bins=(1000,1000),normalize=:pdf)
+histogram2d(out.x[:,1], out.x[:,3], bins=(1000,1000),normalize=:pdf)
 
 plot(0:delta:T,out.z[:,end], label = "z_{d+1}")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
