@@ -10,20 +10,22 @@ using SpecialFunctions
 using StatsBase
 using JLD
 
-d = 50
-sigma = sqrt(d)I(d)
-mu = zeros(d)
-
+d = 100
 nu = 3
+
+sigma = sqrt(nu/(nu-2))*sqrt(d)I(d)
+mu = zeros(d)
 
 d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]))[1]
 
-banana(x; b=1) = vcat(x[1] + b*x[2]^2,x[2:end])
+banana(x; b=0) = vcat(x[1] + b*x[2]^2,x[2:end])
 
 test = x -> -(nu+d)/2*log(nu + sum(x.^2))
 
-f = x -> test(banana(x))
+b=0
 
+f = x -> test(banana(x; b=b))
+#f = test
 #f = x -> -sum(x.^2)/2
 
 #Set up gradient
@@ -34,7 +36,7 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 10000
+T = 100000
 delta = 0.1
 Tbrent = pi/2
 Epsbrent = 0.01
@@ -44,7 +46,7 @@ tol = 1e-6
 lambda = 1
 
 beta = 1.1
-burnin = T/2000
+burnin = T/20
 adaptlength = T/2000
 R = 1e6
 r = 1e-3
@@ -88,20 +90,20 @@ plot(0:delta:T,out.x[:,1], label = "x1")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
 plot!(0:delta:T,out.x[:,2], label = "x2")
 
-plot((0:1:3000)*delta,autocor(out.x[:,1], 0:1:3000), label = "Autocorrelation of x_1")
+plot((0:1:100)*delta,autocor(out.x[:,1], 0:1:100), label = "Autocorrelation of x_1")
 plot!(x -> 0, lwd = 3, label = "")
 
-
-plot((0:1:50000)*delta,autocor(out.z[:,end], 0:1:50000), label = "Autocorrelation of z_{d+1}")
+plot((0:1:2000)*delta,autocor(out.z[:,end], 0:1:2000), label = "Autocorrelation of z_{d+1}")
 plot!(x -> 0, lwd = 3, label = "")
+
+plot((0:1:3000)*delta,autocor(out.x[:,1] .- b*out.x[2].^2, 0:1:3000), label = "Autocorrelation of x_1")
+plot!(x -> 0, lwd = 3, label = "")
+
 
 #savefig("SBPSautocor2.pdf")
 
 #map(x -> sum(x -> x^2, x - mu), eachrow(out.mu))
 #map(x -> sum(x -> x^2, eigen(x - sqrt(d)I(d)).values), out.sigma)
-
-eventtimes = findall(x -> x>1e-2, vec(sum(x -> x^2,out.v[1:end-1,:] - out.v[2:end,:], dims=2)))
-
 
 myanim = @animate for i in 1:size(out.x)[1]
     myplot = plot(1, xlim = (-20,20), ylim = (-20,20), label="",framestyle=:origin)
@@ -113,7 +115,7 @@ end every 50
 gif(myanim, "SBPS.gif")
 
 #plot(out.x[:,1],out.x[:,2])
-histogram2d(out.x[:,1], out.x[:,3], bins=(1000,1000),normalize=:pdf)
+histogram2d(out.x[:,1], out.x[:,2], bins=(1000,1000),normalize=:pdf)
 
 plot(0:delta:T,out.z[:,end], label = "z_{d+1}")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
@@ -127,14 +129,15 @@ plot(sum(out.Nevals, dims=2)./out.times)
 
 ### SSS Tests
 
-Nslice::Int64 = 100000
-stepsslice::Int64 = 100
+Nslice::Int64 = 1000000
+stepsslice::Int64 = 17
 
 beta = 1.1
-burninslice = Nslice/200
-adaptlengthslice = Nslice/200
+burninslice = Nslice/20
+adaptlengthslice = Nslice/2000
 R = 1e9
 r = 1e-3
+forgetrate = 3/4
 
 @time sliceout = SliceAdaptive(f, x0, Nslice, beta, r, R; sigma, mu, burnin = burninslice, adaptlength = adaptlengthslice, steps = stepsslice, forgetrate = forgetrate);
 
@@ -143,7 +146,7 @@ save("sliceout.jld","sliceout",sliceout)
 sliceout = load("sliceout.jld")["sliceout"]
 
 #Plot comparison against the true distribution
-#p(x) = 1/sqrt(2pi)*exp(-x^2/2)
+p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 #q(x) = 1/sqrt(2pi*sigmaf)*exp(-x^2/2sigmaf)
 q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
 b_range = range(-10,10, length=101)
@@ -164,7 +167,10 @@ plot!(x -> 0, lwd = 3, label="")
 plot((0:1:2000)*stepsslice,autocor(sliceout.z[:,end], (0:1:2000)), label="Autocorrelation of z_{d+1}")
 plot!(x -> 0, lwd = 3, label="")
 
-#savefig("SSSautocor1.pdf")
+plot((0:1:3000)*stepsslice,autocor(sliceout.x[:,1] .- b*sliceout.x[2].^2, 0:1:3000), label = "Autocorrelation of x_1")
+plot!(x -> 0, lwd = 3, label = "")
+
+#savefig("SSSautocor2.pdf")
 
 plot(1:stepsslice:Nslice*stepsslice,sliceout.z[:,end], label = "z_{d+1}")
 vline!(stepsslice*cumsum(sliceout.times[1:end-1]), label = "Adaptations", lw = 0.5)
@@ -172,7 +178,8 @@ vline!(stepsslice*cumsum(sliceout.times[1:end-1]), label = "Adaptations", lw = 0
 #map(x -> sum(x -> x^2, x), eachrow(sliceout.mu))
 #plot(log.(map(x -> sum(x -> x^2, eigen(x - sqrt(d)I(d)).values), sliceout.sigma)))
 
-cov(sliceout.x[floor(Int64,2/3*10^5):end,:])
+#plot(sliceout.x[:,1],sliceout.x[:,2])
+histogram2d(sliceout.x[:,1], sliceout.x[:,2], bins=(1000,1000),normalize=:pdf)
 
 
 myanim = @animate for i in 1:size(sliceout.x)[1]
@@ -187,12 +194,12 @@ gif(myanim, "SSS.gif")
 
 ### SRW Tests
 
-h2 = 100d^-1
-Nsrw::Int64 = 100000
-stepssrw::Int64 = 350
+h2 = 5d^-1
+Nsrw::Int64 = 1000000
+stepssrw::Int64 = 75
 
 beta = 1.1
-burninsrw = Nsrw
+burninsrw = Nsrw/20
 adaptlengthsrw = Nsrw/2000
 R = 1e9
 r = 1e-3
@@ -202,27 +209,27 @@ r = 1e-3
 #@time srwout = SRWSimulator(f, x0, h2, Nsrw; sigma, mu, steps = stepssrw);
 srwout.a
 
-save("srwout.jld","sliceout",sliceout)
-sliceout = load("srwout.jld")["sliceout"]
+save("srwout.jld","srwout",srwout)
+#srwout = load("srwout.jld")["sliceout"]
 
 #p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
 b_range = range(-8,8, length=101)
 
 histogram(srwout.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
-#plot!([q p], label= ["t" "N(0,1)"], lw=3)
-plot!(q, label= "t", lw=3)
+plot!([q p], label= ["t" "N(0,1)"], lw=3)
+#plot!(q, label= "t", lw=3)
 xlabel!("x")
 ylabel!("P(x)")
 
 plot((1:Nsrw)*stepssrw, srwout.x[:,1], label = "x1")
-vline!(stepssrw*cumsum(srwout.times[1:end-7]), label = "Adaptations", lw = 0.5)
+vline!(stepssrw*cumsum(srwout.times[1:end-1]), label = "Adaptations", lw = 0.5)
 
 plot((1:Nsrw)*stepssrw,srwout.z[:,end], label = "z_{d+1}", legend=:bottom)
-vline!(stepssrw*cumsum(srwout.times[1:end-7]), label = "Adaptations", lw = 0.5)
+vline!(stepssrw*cumsum(srwout.times[1:end-1]), label = "Adaptations", lw = 0.5)
 
 
-plot((0:1:200)*stepssrw,autocor(srwout.x[:,1], 0:1:200), label="Autocorrelation of x_1")
+plot((0:1:100)*stepssrw,autocor(srwout.x[:,1], 0:1:100), label="Autocorrelation of x_1")
 plot!(x -> 0, lwd = 3, label="")
 
 plot((0:1:2000)*stepssrw,autocor(srwout.z[:,end], 0:1:2000), label="Autocorrelation of z_{d+1}")
@@ -233,6 +240,7 @@ plot!(x -> 0, lwd = 3, label="")
 #savefig("ASRWz.pdf")
 
 #plot(srwout.x[:,1],srwout.x[:,2])
+histogram2d(srwout.x[:,1], srwout.x[:,2], bins=(1000,1000),normalize=:pdf)
 
 srwxnorms = vec(sum(srwout.x .^2, dims=2))
 #plot(sqrt.(srwxnorms), label = "||x||")
