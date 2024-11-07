@@ -22,7 +22,7 @@ banana(x; b=0) = vcat(x[1] + b*x[2]^2,x[2:end])
 
 test = x -> -(nu+d)/2*log(nu + sum(x.^2))
 
-b=1
+b=0
 
 f = x -> test(banana(x; b=b))
 #f = test
@@ -36,14 +36,14 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 100000 #2000seconds on b=0, 3000sec for b=1
+T = 100000 #770seconds on b=0, 3000sec for b=1
 delta = 0.1
 Tbrent = pi/2
 Epsbrent = 0.01
 Abrent = 1.01
 Nbrent = 5
 tol = 1e-6
-lambda = 1
+lambda = 5 #5 gave best ACF
 
 beta = 1.1
 burnin = T/20
@@ -53,9 +53,9 @@ r = 1e-3
 forgetrate = 3/4
 
 @time out = SBPSAdaptiveGeom(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Abrent, Nbrent, tol, sigma, mu, burnin, adaptlength, forgetrate);
-save("outbanana.jld","out",out)
-
-out = load("outbanana.jld")["out"]
+save("out.jld","out",out)
+ 
+out = load("out.jld")["out"]
 
 FullSBPSGeom = function()
     (zout,vout,eventsout,Nevals,Tout) = SBPSGeom(gradlogf, x0, lambda, T, delta; Tbrent = Tbrent, Abrent = Abrent, Nbrent = Nbrent, tol = tol,
@@ -93,7 +93,7 @@ plot!(0:delta:T,out.x[:,2], label = "x2")
 plot((0:1:35000)*delta,autocor(abs.(out.x[:,2]), 0:1:35000), label = "Autocorrelation of x_1")
 plot!(x -> 0, lwd = 3, label = "")
 
-plot((0:1:35000)*delta,autocor(out.z[:,end], 0:1:35000), label = "Autocorrelation of z_{d+1}")
+plot((0:1:2000)*delta,autocor(out.z[:,end], 0:1:2000), label = "λ = $lambda")
 plot!(x -> 0, lwd = 3, label = "")
 
 plot((0:1:35000)*delta,autocor(out.x[:,1] .- b*out.x[2].^2, 0:1:35000), label = "Autocorrelation of x_1")
@@ -130,7 +130,7 @@ plot(sum(out.Nevals, dims=2)./out.times)
 ### SSS Tests
 
 Nslice::Int64 = 1000000
-stepsslice::Int64 = 18 #14 gave 2000sec at b=0, 18 gave 3000sec at b=1
+stepsslice::Int64 = 57 #14 gave 2000sec at b=0, 18 gave 3000sec at b=1
 
 beta = 1.1
 burninslice = Nslice/20
@@ -141,7 +141,7 @@ forgetrate = 3/4
 
 stepstest = zeros(1)
 stepstest[1] = stepsslice
-timedif = 3000
+timedif = 800
 sliceout = zeros(Nslice,d)
 
 for i in 1:5
@@ -152,8 +152,8 @@ for i in 1:5
 
     timedif = (end_time-start_time)/1e9
     println(timedif)
-    if (timedif < 2800) || (timedif > 3200)
-        stepsslice = ceil(Int64, stepsslice * 3000/timedif)
+    if (timedif < 700) || (timedif > 900)
+        stepsslice = ceil(Int64, stepsslice * 800/timedif)
         append!(stepstest,stepsslice)
     else
         break
@@ -161,8 +161,8 @@ for i in 1:5
 end
 
 #@time sliceout = SliceSimulator(f, x0, Nslice; sigma, mu, steps = stepsslice);
-save("slicebanana.jld","sliceout",sliceout)
-sliceout = load("slicebanana.jld")["sliceout"]
+save("sliceout.jld","sliceout",sliceout)
+sliceout = load("sliceout.jld")["sliceout"]
 
 #Plot comparison against the true distribution
 p(x) = 1/sqrt(2pi)*exp(-x^2/2)
@@ -247,8 +247,8 @@ end
 #@time srwout = SRWSimulator(f, x0, h2, Nsrw; sigma, mu, steps = stepssrw);
 srwout.a
 
-save("srwbanana.jld","srwout",srwout)
-#srwout = load("srwbanana.jld")["srwout"]
+save("srwout.jld","srwout",srwout)
+#srwout = load("srwout.jld")["srwout"]
 
 #p(x) = 1/sqrt(2pi)*exp(-x^2/2)
 q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
@@ -323,7 +323,7 @@ for i in 1:5
     end
 end
 
-save("hmcbanana.jld","hmcout",hmcout)
+save("hmcout.jld","hmcout",hmcout)
 #hmcout = load("hmcout.jld")["hmcout"]
 
     

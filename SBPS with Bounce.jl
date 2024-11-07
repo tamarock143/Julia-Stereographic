@@ -6,7 +6,7 @@ using Random
 #We simulate an SBPS path targeting the disribtuion f. It requires x -> ∇log(f(x))
 #This requires bounce events and refreshment events
 SBPSSimulator = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1, Epsbrent = 0.01, tol = 1e-6,
-        sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)))
+        sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), printing = false)
     
     z = SPinv(x0; sigma = sigma, mu = mu, isinv = false) #Map to the sphere
 
@@ -149,7 +149,7 @@ SBPSSimulator = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1
         left -= t 
         
         #Print time left
-        print("Time left: $left\r")
+        printing && print("Time left: $left\r")
         
         #Perform Gram-Schmidt on (z,v) to account for incremental numerical errors
         normalize!(z)
@@ -168,7 +168,7 @@ end
 
 #SBPS simulator with geometrically adapting Brent's method window
 SBPSGeom = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1, Abrent = 1.1, Nbrent = 1, tol = 1e-6,
-    sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)))
+    sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), printing = false)
 
     z = SPinv(x0; sigma = sigma, mu = mu, isinv = false) #Map to the sphere
 
@@ -228,15 +228,19 @@ SBPSGeom = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1, Abr
         nobounce = true
 
         while nobounce && taubounce < min(left,tauref)
-            #For step function upper bound, divide into Nbrent windows of equal length
-            twindows = repeat([Tbrent/Nbrent], Nbrent)
-            M = zeros(Nbrent)
+            #If refreshment event were to occur in current window, don't check for events all the way
+            Nwindows = ceil(Int64, tauref*Nbrent/Tbrent)
+            Widthwindows = Tbrent/Nbrent
 
-            for i in 1:Nbrent
+            #For step function upper bound, divide into Nbrent windows of equal length
+            twindows = repeat([Widthwindows], Nwindows)
+            M = zeros(Nwindows)
+
+            for i in 1:Nwindows
                 #Find upper bound M on the bounce rate for current chunks
                 #We flip the sign of the bound because we are minimising -lambda(z,v)
                 (M[i],tempevals) = (-1,1) .* Brent(s -> bouncerate(s,z,v; sigma = sigma, mu = mu)[1],
-                        Bmin + (i-1)*Tbrent/Nbrent, Bmin + i*Tbrent/Nbrent, tol; countevals = true)[2:3]
+                        Bmin + (i-1)*Widthwindows, Bmin + i*Widthwindows, tol; countevals = true)[2:3]
                 
                 Nopt += tempevals #Brent's method outputs number of gradient evaluations
             end
@@ -337,7 +341,7 @@ SBPSGeom = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1, Abr
         left -= t 
         
         #Print time left
-        print("Time left: $left\r")
+        printing && print("Time left: $left\r")
         
         #Perform Gram-Schmidt on (z,v) to account for incremental numerical errors
         normalize!(z)

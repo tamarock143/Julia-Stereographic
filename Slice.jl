@@ -3,7 +3,7 @@ include("Stereographic Projection.jl")
 using Random
 
 #We simulate a Stereographic Slice Sampler path targeting the disribtuion f
-SliceSimulator = function(logf, x0, N; sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), includefirst = true, steps = 1)
+SliceSimulator = function(logf, x0, N; sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), includefirst = true, steps = 1, printing = false)
     
     z = SPinv(x0; sigma = sigma, mu = mu, isinv = false) #Map to the sphere
 
@@ -36,7 +36,7 @@ SliceSimulator = function(logf, x0, N; sigma = sqrt(length(x0))I(length(x0)), mu
 
     for n in indexes
         #Print iteration number
-        print("\rStep number: $n")
+        printing && print("\rStep number: $n")
 
         #We only sample one point after several steps
         for _ in 1:steps
