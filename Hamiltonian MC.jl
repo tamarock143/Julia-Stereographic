@@ -20,7 +20,7 @@ LeapFrog = function (gradlogf, x, p, delta, L; Minv = I(length(x)))
 end
 
 #HMC Algorithm
-HMC = function (logf, gradlogf, x0, N, delta, L; M = I(length(x0)), steps = 1)
+HMC = function (logf, gradlogf, x0, N, delta, L; M = I(length(x0)), steps = 1, printing = false)
     d = length(x0) #The dimension
 
     Minv = inv(M) #Invert M preemptively
@@ -36,7 +36,7 @@ HMC = function (logf, gradlogf, x0, N, delta, L; M = I(length(x0)), steps = 1)
     
     for n in 2:N
         #Print iteration number
-        print("\rStep number: $n")
+        printing && print("\rStep number: $n")
 
         #We only sample one point after several steps
         for _ in 1:steps

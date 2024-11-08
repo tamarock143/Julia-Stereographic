@@ -4,7 +4,7 @@ using Random
 
 #We simulate an Stereographic Projection Sampler path targeting the disribtuion f
 #To more easily differentiate between SPS and SBPS, we dub this algorithm the Stereographic Random Walk algorithm
-SRWSimulator = function(logf, x0, h2, N; sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), includefirst = true, steps = 1)
+SRWSimulator = function(logf, x0, h2, N; sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), includefirst = true, steps = 1, printing = false)
     
     z = SPinv(x0; sigma = sigma, mu = mu, isinv = false) #Map to the sphere
 
@@ -33,7 +33,7 @@ SRWSimulator = function(logf, x0, h2, N; sigma = sqrt(length(x0))I(length(x0)), 
     
     for n in indexes
         #Print iteration number
-        print("\rStep number: $n")
+        printing && print("\rStep number: $n")
 
         #We only sample one point after several steps
         for _ in 1:steps
