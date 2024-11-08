@@ -227,7 +227,7 @@ SBPSGeom = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1, Abr
         #Indictor of whether we are still looking for a bounce
         nobounce = true
 
-        while nobounce && taubounce < min(left,tauref)
+        while nobounce && taubounce < min(left,tauref) #Force merge
             #For step function upper bound, divide into Nbrent windows of equal length
             twindows = repeat([Tbrent/Nbrent], Nbrent)
             M = zeros(Nbrent)
