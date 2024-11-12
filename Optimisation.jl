@@ -36,7 +36,7 @@ ParaSearch = function (f,a,b,c; fa = missing, fb = missing, fc = missing, triple
     
 end
 
-GoldenSearch = function (f,a,b,c; fa = missing, fb = missing, fc = missing, triplet = false)
+GoldenSearch = function (f,a,b,c; fa = missing, fb = missing, fc = missing, triplet = false, tol = 1e-6)
     #If not provided, evaluate f at each point
     isequal(fa,missing) && (fa = f(a))
     isequal(fb,missing) && (fb = f(b))
@@ -45,10 +45,20 @@ GoldenSearch = function (f,a,b,c; fa = missing, fb = missing, fc = missing, trip
     #Check points are well ordered
     (a<b<c) || (((a,fa),(b,fb),(c,fc)) = sort([(a,fa),(b,fb),(c,fc)], by = x -> x[1]))
 
-    #Ensure we have suitable input
-    (fb > fa || fb > fc) && error("No min in GoldenSearch")
+    (c - a <= tol) && (return sort([(a,fa),(b,fb),(c,fc)], by = x -> x[2])[1])
 
     w = (3-sqrt(5))/2 #Golden ratio
+
+    #If minimum of the 3 is at an endpoint, change search interval
+    if (fb > fa || fb > fc)
+        #x is the endpoint with the smaller image
+        (x,fx) = sort([(a,fa),(c,fc)], by = x -> x[2])[1]
+
+        y = b + (x-b)w
+        fy = f(y)
+
+        return GoldenSearch(f,x,b,y; fa = fx, fb = fb, fc = fy)
+    end
 
     #Find Golden Search interpolation point
     if c-b > b-a #Check whether longer interval is to the left or right of b
@@ -129,7 +139,7 @@ Brent = function (f,a,b,tol; countevals = false)
 
         #If ParaSearch did not yield satisfactory results, use GoldenSearch
         if p == "Fail" || !(a <= p[1] <= b) || abs(fx - p[2]) <= abs(fv - fw)/2
-            (u,fu) = GoldenSearch(f, a, x, b, fa = fa, fb = fx, fc = fb)
+            (u,fu) = GoldenSearch(f, a, x, b, fa = fa, fb = fx, fc = fb; tol = tol)
             countevals && (Nevals += 1)
         else
             (u,fu) = p

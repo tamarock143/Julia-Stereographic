@@ -351,7 +351,7 @@ SBPSGeom = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1, Abr
     #Remove final event, since it records the "end" event
     pop!(bounceindic)
 
-    return (z = zout, v = vout, events = bounceindic, Nevals = [Nopt, Nthin], Tbrent = Tbrent)
+    return (z = zout, v = vout, events = bounceindic, bounceratio = mean(bounceindic), Nevals = [Nopt, Nthin], Tbrent = Tbrent)
 end
 
 
