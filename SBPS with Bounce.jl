@@ -227,16 +227,20 @@ SBPSGeom = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1, Abr
         #Indictor of whether we are still looking for a bounce
         nobounce = true
 
-        while nobounce && taubounce < min(left,tauref) #Force merge
-            #For step function upper bound, divide into Nbrent windows of equal length
-            twindows = repeat([Tbrent/Nbrent], Nbrent)
-            M = zeros(Nbrent)
+        while nobounce && taubounce < min(left,tauref)
+            #If tauref happens before end of window, don't waste effort
+            Widthwindows = Tbrent/Nbrent
+            Nwindows = ceil(Int64, min(Bmax,tauref)/Widthwindows)
 
-            for i in 1:Nbrent
+            #For step function upper bound, divide into Nbrent windows of equal length
+            twindows = repeat([Widthwindows], Nwindows)
+            M = zeros(Nwindows)
+
+            for i in 1:Nwindows
                 #Find upper bound M on the bounce rate for current chunks
                 #We flip the sign of the bound because we are minimising -lambda(z,v)
                 (M[i],tempevals) = (-1,1) .* Brent(s -> bouncerate(s,z,v; sigma = sigma, mu = mu)[1],
-                        Bmin + (i-1)*Tbrent/Nbrent, Bmin + i*Tbrent/Nbrent, tol; countevals = true)[2:3]
+                        Bmin + (i-1)*Widthwindows, Bmin + i*Widthwindows, tol; countevals = true)[2:3]
                 
                 Nopt += tempevals #Brent's method outputs number of gradient evaluations
             end
