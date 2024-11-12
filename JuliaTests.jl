@@ -10,21 +10,24 @@ using SpecialFunctions
 using StatsBase
 using JLD
 
-d = 100
-nu = 3
+d = 200
+nu = 2
 
 sigma = sqrt(nu/(nu-2))sqrt(d)I(d)
 mu = zeros(d)
 
 d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]))[1]
 
-banana(x; b=0) = vcat(x[1] + b*x[2]^2,x[2:end])
+#banana(x; b=0) = vcat(x[1] + b*x[2]^2,x[2:end])
 
 #test = x -> -(nu+d)/2*log(nu + sum(x.^2))
 f = x -> -(nu+d)/2*log(nu + sum(x.^2))
+#test = x -> -(nu+d)/2*log(nu + sum(x.^2))
+f = x -> -(nu+d)/2*log(nu + sum(x.^2))
 
-b=0
+#b=0
 
+#f = x -> test(banana(x; b=b))
 #f = x -> test(banana(x; b=b))
 #f = test
 #f = x -> -sum(x.^2)/2
@@ -37,7 +40,7 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 100000 #770seconds on b=0, 3000sec for b=1
+T = 1000 #770seconds on b=0, 3000sec for b=1
 delta = 0.1
 Tbrent = pi/2
 Epsbrent = 0.01
@@ -55,7 +58,7 @@ forgetrate = 3/4
 
 @time out = SBPSAdaptiveGeom(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Abrent, Nbrent, tol, sigma, mu, burnin, adaptlength, forgetrate);
 save("out.jld","out",out)
- 
+
 out = load("out.jld")["out"]
 
 FullSBPSGeom = function(lambda)
