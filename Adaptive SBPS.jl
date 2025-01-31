@@ -1,7 +1,10 @@
-#Import SBPS Simulator
-include("SBPS with Bounce.jl")
+### ADAPTIVE SBPS CODE ###
 
-SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, Epsbrent = 0.01, tol = 1e-6,
+#Import SBPS Simulator
+include("SBPS.jl")
+
+#SBPS with fixed Brent window
+SBPSAdaptiveFixed = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, Epsbrent = 0.01, tol = 1e-6,
     sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), burnin = 1e2, adaptlength = burnin, forgetrate = 1/2)
 
     d = length(x0) #The dimension
@@ -185,7 +188,7 @@ SBPSAdaptive = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, 
     return (x = xout, z = zout, v = vout, mu = muest, sigma = sigmaest, times = times, c = cout)
 end
 
-
+#SBPS with geometrically adapting Brent window
 SBPSAdaptiveGeom = function(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent = 1, Abrent = 1.1, Nbrent = 1, tol = 1e-6,
     sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), burnin = 1e2, adaptlength = burnin, forgetrate = 1/2)
 

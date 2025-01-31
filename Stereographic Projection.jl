@@ -1,7 +1,7 @@
+### Code for the various functions involving the Stereographic Projection ###
+
 #Import LinearAlgebra library
 using LinearAlgebra
-
-## Stereographic Projection ##
 
 #Stereographic Projection from z to x
 SP = function (z; sigma = sqrt(length(z)-1)I(length(z)-1), mu = zeros(length(z)-1))

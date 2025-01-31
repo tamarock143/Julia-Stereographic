@@ -1,4 +1,4 @@
-#We code up our version of a HMC algorithm in order to compare with our SBPS
+### We code up our version of a HMC algorithm in order to compare with our algorithms ###
 
 #Import LinearAlgebra library
 using LinearAlgebra

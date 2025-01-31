@@ -1,3 +1,5 @@
+### SSS Code ###
+
 #Import Stereographic Projection stuff, and the Random library
 include("Stereographic Projection.jl")
 using Random

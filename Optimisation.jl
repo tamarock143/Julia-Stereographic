@@ -1,3 +1,5 @@
+### Optimisation functions (not all used in final algorithms) ###
+
 #Brent's Method for 1 dimensional function minimisation
 #We need the parabolic interpolation method, and the Golden search method
 
@@ -169,7 +171,7 @@ end
 
 #Tangents method for finding lower bounds of 1 dimensional functions with gradients
 #Most efficient when function evaluations are provided directly
-#<ust provide either function evaluations or raw functions
+#Must provide either function evaluations or raw functions
 Tangentmin = function (t1, t2; ft1 = missing, ft2 = missing, gradt1 = missing, gradt2 = missing, f = missing, gradf = missing)
     #Calculate values and radients if not specified
     ismissing(ft1) && (ft1 = f(t1))

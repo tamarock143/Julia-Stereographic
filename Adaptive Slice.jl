@@ -1,5 +1,7 @@
-#Import SRW Simulator and Optimisation library
-include("Slice.jl")
+### ADAPTIVE SSS CODE ###
+
+#Import SSS Simulator and Optimisation library
+include("SSS.jl")
 include("Optimisation.jl")
 
 SliceAdaptive = function(logf, x0, N, beta, r, R;

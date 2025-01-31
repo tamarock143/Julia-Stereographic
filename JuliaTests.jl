@@ -1,8 +1,11 @@
+### Main Testing File ###
+
 include("Adaptive SBPS.jl")
 include("Hamiltonian MC.jl")
 include("Adaptive SRW.jl")
 include("SHMC.jl")
 include("Adaptive Slice.jl")
+include("SBPSnormal.jl")
 
 using ForwardDiff
 using Plots
@@ -10,18 +13,16 @@ using SpecialFunctions
 using StatsBase
 using JLD
 
-d = 200
-nu = 2
+d = 2
+nu = 3
 
-sigma = sqrt(nu/(nu-2))sqrt(d)I(d)
+sigma = sqrt(d)I(d)
 mu = zeros(d)
 
 d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]))[1]
 
 #banana(x; b=0) = vcat(x[1] + b*x[2]^2,x[2:end])
 
-#test = x -> -(nu+d)/2*log(nu + sum(x.^2))
-f = x -> -(nu+d)/2*log(nu + sum(x.^2))
 #test = x -> -(nu+d)/2*log(nu + sum(x.^2))
 f = x -> -(nu+d)/2*log(nu + sum(x.^2))
 
@@ -40,14 +41,14 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 1000 #770seconds on b=0, 3000sec for b=1
-delta = 0.1
+T = 200 #770seconds on b=0, 3000sec for b=1
+delta = 0.01
 Tbrent = pi/2
 Epsbrent = 0.01
 Abrent = 1.01
 Nbrent = 20
 tol = 1e-6
-#lambda = 5 #5 gave best ACF
+lambda = 1 #5 gave best ACF for t_2, 0.6 gave best ACF for normal
 
 beta = 1.1
 burnin = T
@@ -82,7 +83,23 @@ for lambda in 1:10
     save("out_$lambda.jld","out",out)
 end
 
-#@time out = FullSBPSGeom();
+FullSBPSNorm = function(lambda)
+    (zout,vout,eventsout,bounceratio) = out = SBPSNorm(x0,lambda,T,delta; tol = tol, printing = false)
+
+    n = floor(BigInt, T/delta)+1 #Total number of observations of the skeleton path
+    xout = zeros(n,d)
+
+    #Project each entry back to R^d
+    for i in 1:n
+        xout[i,:] = SP(zout[i,:]; sigma = sqrt(d)*I(d), mu = zeros(d))
+    end
+
+    return (z = zout, v = vout, x = xout, events = eventsout, bounceratio = bounceratio)
+end
+
+#@time out = FullSBPSGeom(lambda);
+
+#@time out = FullSBPSNorm(lambda);
 
 #Plot comparison against the true distribution
 p(x) = 1/sqrt(2pi)*exp(-x^2/2)
@@ -100,10 +117,10 @@ plot(0:delta:T,out.x[:,1], label = "x1")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
 plot!(0:delta:T,out.x[:,2], label = "x2")
 
-plot((0:1:35000)*delta,autocor(abs.(out.x[:,2]), 0:1:35000), label = "Autocorrelation of x_1")
+plot((0:1:350)*delta,autocor(abs.(out.x[:,1]), 0:1:350), label = "Autocorrelation of x_1")
 plot!(x -> 0, lwd = 3, label = "")
 
-plot((0:1:2000)*delta,autocor(out.z[:,end], 0:1:2000), label = "λ = $lambda")
+plot((0:1:350)*delta,autocor(out.z[:,end], 0:1:350), label = "Autocorrelation of z_{d+1}")
 plot!(x -> 0, lwd = 3, label = "")
 
 plot((0:1:35000)*delta,autocor(out.x[:,1] .- b*out.x[2].^2, 0:1:35000), label = "Autocorrelation of x_1")
@@ -116,19 +133,21 @@ plot!(x -> 0, lwd = 3, label = "")
 #map(x -> sum(x -> x^2, eigen(x - sqrt(d)I(d)).values), out.sigma)
 
 myanim = @animate for i in 1:size(out.x)[1]
-    myplot = plot(1, xlim = (-20,20), ylim = (-20,20), label="",framestyle=:origin)
+    myplot = plot(1, xlim = (-10,10), ylim = (-10,10), label="",framestyle=:origin)
     plot!(myplot, out.x[1:i,1], out.x[1:i,2], color=1, label="")
     scatter!(myplot, [out.x[i,1]], [out.x[i,2]], c=:red, label="")
     myplot
 end every 50
 
-gif(myanim, "SBPS.gif")
+gif(myanim)
+gif(myanim, "SBPS.mp4")
 
 #plot(out.x[:,1].^2,out.z[:,end])
 histogram2d(out.x[:,1], out.x[:,2], bins=(1000,1000),normalize=:pdf)
 
-plot(0:delta:T,out.z[:,end].^2, label = "z_{d+1}")
+plot(out.z[10500:10600,end], label = "z_{d+1}")
 vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
+plot(out.v[:,end], label = "v_{d+1}")
 
 mean(out.z[:,end])
 
@@ -139,11 +158,11 @@ plot(sum(out.Nevals, dims=2)./out.times)
 
 ### SSS Tests
 
-Nslice::Int64 = 1000
+Nslice::Int64 = 2000
 stepsslice::Int64 = 1 #14 gave 2000sec at b=0, 18 gave 3000sec at b=1
 
 beta = 1.1
-burninslice = Nslice/20
+burninslice = Nslice
 adaptlengthslice = Nslice/2000
 R = 1e9
 r = 1e-3
@@ -190,10 +209,10 @@ plot(1:stepsslice:Nslice*stepsslice,sliceout.x[:,1], label = "x1")
 vline!(stepsslice*cumsum(sliceout.times[1:end-1]), label = "Adaptations", lw = 0.5)
 
 
-plot((0:1:5000)*stepsslice,autocor(sliceout.x[:,1], (0:1:5000)), label="Autocorrelation of x_1")
+plot((0:1:350)*stepsslice,autocor(sliceout.x[:,1], (0:1:350)), label="Autocorrelation of x_1")
 plot!(x -> 0, lwd = 3, label="")
 
-plot((0:1:20000)*stepsslice,autocor(sliceout.z[:,end], (0:1:20000)), label="Autocorrelation of z_{d+1}")
+plot((0:1:350)*stepsslice,autocor(sliceout.z[:,end], (0:1:350)), label="Autocorrelation of z_{d+1}")
 plot!(x -> 0, lwd = 3, label="")
 
 plot((0:1:35000)*stepsslice,autocor(sliceout.x[:,1] .- b*sliceout.x[2].^2, 0:1:35000), label = "Autocorrelation of x_1")
@@ -212,23 +231,24 @@ histogram2d(sliceout.x[:,1], sliceout.x[:,2], bins=(1000,1000),normalize=:pdf)
 
 
 myanim = @animate for i in 1:size(sliceout.x)[1]
-    myplot = plot(1, xlim = (-20,20), ylim = (-20,20), label="",framestyle=:origin)
+    myplot = plot(1, xlim = (-10,10), ylim = (-10,10), label="",framestyle=:origin)
     plot!(myplot, sliceout.x[1:i,1], sliceout.x[1:i,2], color=1, label="")
     scatter!(myplot, [sliceout.x[i,1]], [sliceout.x[i,2]], c=:red, label="")
     myplot
-end every 3
+end every 5
 
-gif(myanim, "SSS.gif")
+gif(myanim)
+gif(myanim, "SSS.mp4")
 
 
 ### SRW Tests
 
-h2 = 5d^-1
-Nsrw::Int64 = 1000000
-stepssrw::Int64 = 76 #53 gave 2000sec at b=0, 77 gave 3000sec at b=1
+h2 = 0.75d^-1
+Nsrw::Int64 = 2000
+stepssrw::Int64 = 1 #53 gave 2000sec at b=0, 77 gave 3000sec at b=1
 
 beta = 1.1
-burninsrw = Nsrw/20
+burninsrw = Nsrw
 adaptlengthsrw = Nsrw/2000
 R = 1e9
 r = 1e-3
@@ -295,13 +315,14 @@ srwxnorms = vec(sum(srwout.x .^2, dims=2))
 maximum(srwxnorms)
 
 myanim = @animate for i in 1:size(srwout.x)[1]
-    myplot = plot(1, xlim = (-20,20), ylim = (-20,20), label="",framestyle=:origin)
+    myplot = plot(1, xlim = (-10,10), ylim = (-10,10), label="",framestyle=:origin)
     plot!(myplot, srwout.x[1:i,1], srwout.x[1:i,2], color=1, label="")
     scatter!(myplot, [srwout.x[i,1]], [srwout.x[i,2]], c=:red, label="")
     myplot
-end every 3
+end every 5
 
-gif(myanim, "SRW.gif")
+gif(myanim)
+gif(myanim, "SRW.mp4")
 
 ### HMC Testing
 

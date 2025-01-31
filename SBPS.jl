@@ -1,3 +1,5 @@
+### SBPS Code ###
+
 #Import Stereographic Projection stuff, Brent stuff, and the Random library
 include("Stereographic Projection.jl")
 include("Optimisation.jl")
@@ -233,8 +235,8 @@ SBPSGeom = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1, Abr
             Nwindows = ceil(Int64, min(Bmax,tauref)/Widthwindows)
 
             #For step function upper bound, divide into Nbrent windows of equal length
-            twindows = repeat([Widthwindows], Nwindows)
-            M = zeros(Nwindows)
+            twindows::Vector{Float64} = repeat([Widthwindows], Nwindows)
+            M = zeros(Float64,Nwindows)
 
             for i in 1:Nwindows
                 #Find upper bound M on the bounce rate for current chunks
@@ -248,10 +250,14 @@ SBPSGeom = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1, Abr
             #Set the rate upper bounds to be positive
             map!(m -> max(0,m), M, M)
 
+            #Create copy of M and twindows in case of an invalid upper bound
+            Mcopy = copy(M)
+            twindowscopy = copy(twindows)
+
             #Simulate whether there will be a bounce in this chunk
             while nobounce && taubounce < min(left,tauref,Bmax)
                 #Simulate next possible bounce time according to the Poisson Process with the upper bound rate
-                (taustep, boundtemp) = PoissonStepSim(M,twindows; tau0 = taustep)
+                (taustep, boundtemp) = PoissonStepSim(Mcopy,twindowscopy; tau0 = taustep)
                 #Update time of final potential bounce event
                 taubounce += taustep
 
@@ -274,8 +280,21 @@ SBPSGeom = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1, Abr
 
                     u = rand(Float64) #Uniform random variable to accept/reject bounce
 
-                    #Sanity check for the upper bound
-                    -mybounce[1] > boundtemp && error("Invalid upper bound")
+                    #Sanity check for the upper bound. If upper bound is invalid, go back to taubounce = Bmin with a new upper bound
+                    if -mybounce[1] > boundtemp
+                        #If upper bound was wrong, update upper bound
+                        M[Nwindows - length(Mcopy) + 1] = -mybounce[1]
+
+                        #Reset Mcopy and twindowscopy
+                        Mcopy = M
+                        twindowscopy = twindows
+
+                        #Ensure rejection of step and go back to Bmin
+                        boundtemp = Inf
+                        taubounce = Bmin
+                        taustep = 0
+                    end
+                    
 
                     if -mybounce[1]/boundtemp > u #Accept bounce and break, or go for another loop
                         nobounce = false

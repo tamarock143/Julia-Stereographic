@@ -1,3 +1,5 @@
+### ADAPTIVE SRW CODE ###
+
 #Import SRW Simulator and Optimisation library
 include("SRW.jl")
 include("Optimisation.jl")

@@ -1,3 +1,4 @@
+### WORK IN PROGRESS ###
 #Attempt at coding up a stereographic HMC
 
 #Import Stereographic Projection stuff, and the Random library
