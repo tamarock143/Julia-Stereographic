@@ -1,6 +1,10 @@
 # Adaptive Stereographic MCMC algorithms 
 
 Code attached to the [Adaptive Stereographic MCMC]([url](https://arxiv.org/abs/2408.11780)) project. Please cite this paper if you use this code or found it helpful.
+Example sample paths can be found at:
+- SRW: https://youtu.be/1p3cE2QfVFE
+- SSS: https://youtu.be/EkEuZtfvXW8
+- SBPS: https://youtu.be/8Hi2jW-2eBw
 
 ## Preliminary Code
 
