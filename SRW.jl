@@ -6,7 +6,7 @@ using Random
 
 #We simulate an Stereographic Projection Sampler path targeting the disribtuion f
 #To more easily differentiate between SPS and SBPS, we dub this algorithm the Stereographic Random Walk algorithm
-SRWSimulator = function(logf, x0, h2, N; sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), includefirst = true, steps = 1, printing = false)
+SRWSimulator = function(logf, x0, h, N; sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), includefirst = true, steps = 1, printing = false)
     
     z = SPinv(x0; sigma = sigma, mu = mu, isinv = false) #Map to the sphere
 
@@ -39,7 +39,7 @@ SRWSimulator = function(logf, x0, h2, N; sigma = sqrt(length(x0))I(length(x0)), 
 
         #We only sample one point after several steps
         for _ in 1:steps
-            dz = h2*randn(d+1) #Gaussian step
+            dz = h*randn(d+1) #Gaussian step
             dz -= sum(z.*dz)*z #Project step onto the tangent plane at z
 
             zprime = normalize(z + dz) #New proposed point
@@ -56,8 +56,8 @@ SRWSimulator = function(logf, x0, h2, N; sigma = sqrt(length(x0))I(length(x0)), 
                 #Update position in both Euclidean and Stereographic space
                 (x, z, fx) = (xprime, zprime, fxprime) 
 
-                #Keep track of average acceptance probability
-                aout += 1/(N*steps - includefirst)
+                #Keep track of number of accepts
+                aout += 1
             end
         end
         
@@ -67,5 +67,5 @@ SRWSimulator = function(logf, x0, h2, N; sigma = sqrt(length(x0))I(length(x0)), 
     end
     println()
 
-    return (x = xout, z = zout, a = aout)
+    return (x = xout, z = zout, a = aout/(N*steps - includefirst))
 end

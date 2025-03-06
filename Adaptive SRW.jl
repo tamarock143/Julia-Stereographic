@@ -5,7 +5,7 @@ include("SRW.jl")
 include("Optimisation.jl")
 
 SRWAdaptive = function(logf, x0, h2, N, beta, r, R;
-    sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), burnin = 1e2, adaptlength = burnin, steps = 1, forgetrate = 1/2)
+    sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), burnin = 1e2, adaptlength = burnin, steps = 1, forgetrate = 1/2, updategamma = true, updateh = false, hgeom = 1)
 
     d = length(x0) #The dimension
 
@@ -54,6 +54,11 @@ SRWAdaptive = function(logf, x0, h2, N, beta, r, R;
 
     #Indexes of starts of each adaptation in xout. Will be required for moving paths into output
     adaptstarts = append!([1], cumsum(times)[1:end] .+ 1)
+    
+    #Prepare storage for acceptance ratios and estimators for h
+    accepts::Vector{Float64} = zeros(nadapt)
+    h::Vector{Float64} = zeros(nadapt+1)
+    h[1] = h2
 
     #Prepare estimators for mu and sigma
     #m and s2 track sums we will need to iteratively update the estimators
@@ -81,7 +86,7 @@ SRWAdaptive = function(logf, x0, h2, N, beta, r, R;
         
         #Run the process with the given parameters
         #The -(iadapt !=1) term is a workaround for indexing
-        @time (xpath,zpath) = SRWSimulator(logf, xout[adaptstarts[iadapt]-(iadapt !=1),:], h2, min(t,left); 
+        @time (xpath,zpath,accepts[iadapt]) = SRWSimulator(logf, xout[adaptstarts[iadapt]-(iadapt !=1),:], h[iadapt], min(t,left); 
         sigma = sigmaest[iadapt], mu = muest[iadapt,:], includefirst = (iadapt == 1), steps = steps)
 
         #Update how much time is left
@@ -98,75 +103,94 @@ SRWAdaptive = function(logf, x0, h2, N, beta, r, R;
             xout[adaptstarts[iadapt]:adaptstarts[iadapt+1]-1,:] = xpath
         end
 
-        #Update column sums
-        m[iadapt] = vec(sum(xpath, dims = 1))
+        #Update gamma = (mu, sigma) with empirical estimates of mean and covariance
+        if updategamma
+            #Update column sums
+            m[iadapt] = vec(sum(xpath, dims = 1))
 
-        #We will "forget" the first half of the epochs
-        #Calculate how many terms are used for the estimators
-        nlearn = sum(times[ceil(Int64, iadapt*forgetrate):iadapt])
+            #We will "forget" the first half of the epochs
+            #Calculate how many terms are used for the estimators
+            nlearn = sum(times[ceil(Int64, iadapt*forgetrate):iadapt])
 
-        #Placeholder for mu update
-        mutemp = sum(m[ceil(Int64, iadapt*forgetrate):iadapt])/nlearn
+            #Placeholder for mu update
+            mutemp = sum(m[ceil(Int64, iadapt*forgetrate):iadapt])/nlearn
 
-        #Update sum for covariance estimator
-        for x in eachrow(xpath)
-            s2[iadapt] += x*x'
+            #Update sum for covariance estimator
+            for x in eachrow(xpath)
+                s2[iadapt] += x*x'
+            end
+
+            #Reduce norm of mean estimate if necessary
+            rtemp = sum(mutemp.^2)
+            rtemp > R^2 && (mutemp *= R/rtemp)
+
+            #Output mean estimator
+            muest[iadapt+1,:] = mutemp
+
+            #Try statement included in case of NaNs or other matrix irregularities (such as near-0 eigenvalues)
+            try
+                #Placeholder for sigma update
+                sigmatemp = nlearn/(nlearn-1)*Symmetric(sum(s2[ceil(Int64, iadapt*forgetrate):iadapt])/nlearn - mutemp*mutemp')
+
+                invtemp = inv(sqrt(sigmatemp))
+
+                #Create set of norms for centered and scaled output
+                #Using many epochs to tune the shape, we use only the latest data for the full scale
+                xnorms = Vector{Float64}()
+                for x in eachrow(xpath[floor(Int64,size(xpath)[1]/2):end,:])
+                    append!(xnorms, sum(x -> x^2, invtemp*(x - mutemp)))
+                end
+
+                #We now scale the covariance matrix so that the latitude is centered
+                #If the estimators are correct, should get c=d
+                #For this, we use the Robbins-Monro algorithm (note this requires an increasing functional)
+
+                latf(x,theta) = -(x - theta)/(x + theta) #Negative Latitude of a given z at position ||x||^2/theta
+                c = RobMonro(latf, xnorms, d, 1, 1e6; lower = (10d)^-10, upper = (10Float64(d))^10)
+                #println(sqrt(c/d))
+                
+                #Scale the covariance
+                sigmatemp *= c
+                cout[iadapt] = c
+
+                #Diagonalise the covariance estimator
+                (evalstemp,evecstemp) = eigen(sigmatemp)
+
+                #Truncate large eigenvalues
+                for i in 1:d
+                    evalstemp[i] > R^2 && (evalstemp[i] = R^2)
+                    evalstemp[i] < 0 && (evalstemp[i] = 0)
+                end
+
+                #Output sigma estimator, equal to sqrt of covariance estimator
+                #We include the +r*I(d) term to get lower bounds on the eigenvalues
+                sigmaest[iadapt+1] = Symmetric(evecstemp*Diagonal(sqrt.(evalstemp))*evecstemp') + r*I(d)
+            catch
+                #If there was an error, just keep the previous estimate
+                sigmaest[iadapt+1] = sigmaest[iadapt]
+                println("Warning: Covariance Matrix Update Error")
+            end
+        
+        else
+            muest[iadapt+1,:] = muest[iadapt,:]
+            sigmaest[iadapt+1] = sigmaest[iadapt]
         end
 
-        #Reduce norm of mean estimate if necessary
-        rtemp = sum(mutemp.^2)
-        rtemp > R^2 && (mutemp *= R/rtemp)
+        #Update step size h via geometric update targeting acceptance rate of 0.234
+        if updateh
+            h[iadapt+1] = h[iadapt]*exp(hgeom*(accepts[iadapt] - 0.234)/iadapt)
 
-        #Output mean estimator
-        muest[iadapt+1,:] = mutemp
+            #Truncate estimator for theoretical reasons
+            h[iadapt+1] > R^2 && (h[iadapt+1] = R^2)
+            h[iadapt+1] < r^2 && (h[iadapt+1] = r^2)
 
-        #Try statement included in case of NaNs or other matrix irregularities (such as near-0 eigenvalues)
-        try
-            #Placeholder for sigma update
-            sigmatemp = nlearn/(nlearn-1)*Symmetric(sum(s2[ceil(Int64, iadapt*forgetrate):iadapt])/nlearn - mutemp*mutemp')
-
-            invtemp = inv(sqrt(sigmatemp))
-
-            #Create set of norms for centered and scaled output
-            #Using many epochs to tune the shape, we use only the latest data for the full scale
-            xnorms = Vector{Float64}()
-            for x in eachrow(xpath[floor(Int64,size(xpath)[1]/2):end,:])
-                append!(xnorms, sum(x -> x^2, invtemp*(x - mutemp)))
-            end
-
-            #We now scale the covariance matrix so that the latitude is centered
-            #If the estimators are correct, should get c=d
-            #For this, we use the Robbins-Monro algorithm (note this requires an increasing functional)
-
-            latf(x,theta) = -(x - theta)/(x + theta) #Negative Latitude of a given z at position ||x||^2/theta
-            c = RobMonro(latf, xnorms, d, 1, 1e6; lower = (10d)^-10, upper = (10Float64(d))^10)
-            #println(sqrt(c/d))
-            
-            #Scale the covariance
-            sigmatemp *= c
-            cout[iadapt] = c
-
-            #Diagonalise the covariance estimator
-            (evalstemp,evecstemp) = eigen(sigmatemp)
-
-            #Truncate large eigenvalues
-            for i in 1:d
-                evalstemp[i] > R^2 && (evalstemp[i] = R^2)
-                evalstemp[i] < 0 && (evalstemp[i] = 0)
-            end
-
-            #Output sigma estimator, equal to sqrt of covariance estimator
-            #We include the +r*I(d) term to get lower bounds on the eigenvalues
-            sigmaest[iadapt+1] = Symmetric(evecstemp*Diagonal(sqrt.(evalstemp))*evecstemp') + r*I(d)
-        catch
-            #If there was an error, just keep the previous estimate
-            sigmaest[iadapt+1] = sigmaest[iadapt]
-            println("Warning: Covariance Matrix Update Error")
+        else
+            h[iadapt+1] = h2
         end
         
         #Increment number of adaptations
         iadapt += 1
     end
 
-    return (x = xout, z = zout, mu = muest, sigma = sigmaest, times = times, c = cout)
+    return (x = xout, z = zout, mu = muest, sigma = sigmaest, times = times, c = cout, h = h, a = accepts)
 end

@@ -5,7 +5,7 @@ include("Hamiltonian MC.jl")
 include("Adaptive SRW.jl")
 include("SHMC.jl")
 include("Adaptive Slice.jl")
-include("SBPSnormal.jl")
+
 
 using ForwardDiff
 using Plots
@@ -13,7 +13,7 @@ using SpecialFunctions
 using StatsBase
 using JLD
 
-d = 2
+d = 1000
 nu = 3
 
 sigma = sqrt(d)I(d)
@@ -23,8 +23,8 @@ d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]))[1]
 
 #banana(x; b=0) = vcat(x[1] + b*x[2]^2,x[2:end])
 
-#test = x -> -(nu+d)/2*log(nu + sum(x.^2))
-f = x -> -(nu+d)/2*log(nu + sum(x.^2))
+f = x -> -sum(x.^2 ./(1 .+ abs.(x)))
+#f = x -> -(nu+d)/2*log(nu + sum(x.^2))
 
 #b=0
 
@@ -41,7 +41,7 @@ gradlogf(x0)
 
 ### SBPS Testing
 
-T = 200 #770seconds on b=0, 3000sec for b=1
+T = 10000 #770seconds on b=0, 3000sec for b=1
 delta = 0.01
 Tbrent = pi/2
 Epsbrent = 0.01
@@ -51,8 +51,8 @@ tol = 1e-6
 lambda = 1 #5 gave best ACF for t_2, 0.6 gave best ACF for normal
 
 beta = 1.1
-burnin = T
-adaptlength = T/2000
+burnin = T/20
+adaptlength = T/20
 R = 1e6
 r = 1e-3
 forgetrate = 3/4
@@ -243,38 +243,21 @@ gif(myanim, "SSS.mp4")
 
 ### SRW Tests
 
-h2 = 0.75d^-1
-Nsrw::Int64 = 2000
+h = 5d^-1
+Nsrw::Int64 = 100000
 stepssrw::Int64 = 1 #53 gave 2000sec at b=0, 77 gave 3000sec at b=1
 
 beta = 1.1
-burninsrw = Nsrw
+burninsrw = Nsrw/2000
 adaptlengthsrw = Nsrw/2000
 R = 1e9
 r = 1e-3
+forgetrate = 3/4
+hgeom = 10
 
-stepstest = zeros(1)
-stepstest[1] = stepssrw
-timedif = 3000
-srwout = zeros(Nsrw,d)
+@time srwout = SRWAdaptive(f, x0, h, Nsrw, beta, r, R; sigma, mu,burnin = burninsrw, adaptlength = adaptlengthsrw, steps = stepssrw, forgetrate = forgetrate, updateh = true, hgeom = hgeom);
 
-for i in 1:5
-    start_time = Int(time_ns())
-    @time srwout = SRWAdaptive(f, x0, h2, Nsrw, beta, r, R; sigma, mu,burnin = burninsrw, adaptlength = adaptlengthsrw, steps = stepssrw);
-    
-    end_time = Int(time_ns())
-
-    timedif = (end_time-start_time)/1e9
-    println(timedif)
-    if (timedif < 2800) || (timedif > 3200)
-        stepssrw = ceil(Int64, stepssrw * 3000/timedif)
-        append!(stepstest,stepssrw)
-    else
-        break
-    end
-end
-
-#@time srwout = SRWSimulator(f, x0, h2, Nsrw; sigma, mu, steps = stepssrw);
+#@time srwout = SRWSimulator(f, x0, h, Nsrw; sigma, mu, steps = stepssrw);
 srwout.a
 
 save("srwout.jld","srwout",srwout)
@@ -412,7 +395,7 @@ end
 
 #Output norms of SRW process
 mySRWtest = function ()
-    @time srwout = SRWAdaptive(f, x0, h2, Nsrw, beta, r, R; sigma, mu, burnin = burninsrw, adaptlength = adaptlengthsrw);
+    @time srwout = SRWAdaptive(f, x0, h, Nsrw, beta, r, R; sigma, mu, burnin = burninsrw, adaptlength = adaptlengthsrw);
 
     srwxnorms = vec(sum(srwout.x.^2, dims=2))
     
