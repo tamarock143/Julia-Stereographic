@@ -286,8 +286,8 @@ SBPSGeom = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1, Abr
                         M[Nwindows - length(Mcopy) + 1] = -mybounce[1]
 
                         #Reset Mcopy and twindowscopy
-                        Mcopy = M
-                        twindowscopy = twindows
+                        Mcopy = copy(M)
+                        twindowscopy = copy(twindows)
 
                         #Ensure rejection of step and go back to Bmin
                         boundtemp = Inf
