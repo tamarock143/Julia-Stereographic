@@ -4,7 +4,7 @@
 include("SRW.jl")
 include("Optimisation.jl")
 
-SRWAdaptive = function(logf, x0, h2, N, beta, r, R;
+SRWAdaptive = function(logf, x0, h0, N, beta, r, R;
     sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), burnin = 1e2, adaptlength = burnin, steps = 1, forgetrate = 1/2, updategamma = true, updateh = false, hgeom = 1)
 
     d = length(x0) #The dimension
@@ -58,7 +58,7 @@ SRWAdaptive = function(logf, x0, h2, N, beta, r, R;
     #Prepare storage for acceptance ratios and estimators for h
     accepts::Vector{Float64} = zeros(nadapt)
     h::Vector{Float64} = zeros(nadapt+1)
-    h[1] = h2
+    h[1] = h0
 
     #Prepare estimators for mu and sigma
     #m and s2 track sums we will need to iteratively update the estimators
@@ -185,7 +185,7 @@ SRWAdaptive = function(logf, x0, h2, N, beta, r, R;
             h[iadapt+1] < r^2 && (h[iadapt+1] = r^2)
 
         else
-            h[iadapt+1] = h2
+            h[iadapt+1] = h0
         end
         
         #Increment number of adaptations
