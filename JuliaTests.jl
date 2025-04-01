@@ -17,7 +17,7 @@
     nu = 2
 
     sigma = sqrt(d)I(d)
-    mu = zeros(d)
+    mu = zeros(d) .+ 1e3
 
     d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]))[1]
 
@@ -46,8 +46,8 @@
 
 ### SBPS Testing
 
-    T = 6000 #0 to 3000 took ~20 mins. 3000 to 4500 took ~3.5 hours. 4500 to 6000 took ~40mins
-    delta = 0.01
+    T = 10000 #1 hour 40 mins ish
+    delta = 0.1
     Tbrent = pi/2
     Epsbrent = 0.01
     Abrent = 1.01
@@ -56,14 +56,14 @@
     lambda = 1 #5 gave best ACF for t_2, 0.6 gave best ACF for normal
 
     beta = 1.1
-    burnin = T/2000
-    adaptlength = T/2000
+    burnin = T/5000
+    adaptlength = T/5000
     R = 1e6
     r = 1e-3
     forgetrate = 3/4
-    lambdageom = 10
+    lambdageom = 0.1
 
-    @time out = SBPSAdaptiveGeom(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Abrent, Nbrent, tol, sigma, mu, burnin, adaptlength, forgetrate, updategamma = true, updatelambda = true);
+    @time out = SBPSAdaptiveGeom(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Abrent, Nbrent, tol, sigma, mu, burnin, adaptlength, forgetrate, updategamma = true, updatelambda = false, lambdageom = 10);
     save("out.jld","out",out)
 
     out = load("out.jld")["out"]
@@ -108,9 +108,12 @@
     plot!(0:delta:T,out.x[:,2], label = "x2")
 
     plot(0:delta:T,out.z[:,end], label = "z_{d+1}")
-    vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
-    plot(out.v[:,end], label = "v_{d+1}")
+    vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
 
+    plot(0:delta:T,sum(out.z[:,1:d], dims = 2)/sqrt(d), label = "z_{d+1}")
+    vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
+    plot!(0:delta:T,out.z[:,1], label = "z_{d+1}")
+    
     plot((0:1:700)*delta,autocor(out.x[:,1].^2, 0:1:700), label = "Autocorrelation of x_1^2")
     plot!(x -> 0, lwd = 3, label = "")
 
@@ -120,8 +123,9 @@
     plot((0:1:35000)*delta,autocor(out.x[:,1] .- b*out.x[2].^2, 0:1:35000), label = "Autocorrelation of x_1")
     plot!(x -> 0, lwd = 3, label = "")
 
+    plot(cumsum(out.times),sum(out.Nevals, dims = 2) ./ out.times, label = "Gradient evaluations per unit time")
 
-    #savefig("SBPSautocor2.pdf")
+    #savefig("ASBPSevals.pdf")
 
     #map(x -> sum(x -> x^2, x - mu), eachrow(out.mu))
     #map(x -> sum(x -> x^2, eigen(x - sqrt(d)I(d)).values), out.sigma)
@@ -137,7 +141,7 @@
     gif(myanim, "SBPS.mp4")
 
     #plot(out.x[:,1].^2,out.z[:,end])
-    histogram2d(out.x[:,1], out.x[:,2], bins=(1000,1000),normalize=:pdf)
+    histogram2d(out.z[:,1], out.z[:,2], bins=(1000,1000),normalize=:pdf)
 
     mean(out.z[:,end])
 
@@ -149,7 +153,7 @@
 ### SSS Tests
 
     Nslice::Int64 = 1000000
-    stepsslice::Int64 = 2 #30 seconds
+    stepsslice::Int64 = 3 #30 seconds
 
     beta = 1.1
     burninslice = Nslice/2000
@@ -162,7 +166,7 @@
 
     #@time sliceout = SliceSimulator(f, x0, Nslice; sigma, mu, steps = stepsslice);
     save("sliceout.jld","sliceout",sliceout)
-    sliceout = load("slicebanana.jld")["sliceout"]
+    sliceout = load("sliceout.jld")["sliceout"]
 
     #Plot comparison against the true distribution
     p(x) = 1/sqrt(2pi)*exp(-x^2/2)
@@ -182,6 +186,9 @@
     plot(1:stepsslice:Nslice*stepsslice,sliceout.z[:,end], label = "z_{d+1}")
     vline!(stepsslice*cumsum(sliceout.times[1:end-1]), label = "Adaptations", lw = 0.5)
 
+    plot(stepsslice*cumsum(sliceout.times), sliceout.Nprop ./ (stepsslice*sliceout.times), label = "Proposals per step")
+
+    savefig("ASSSprop.pdf")
 
     plot((0:1:700)*stepsslice,autocor(sliceout.x[:,1].^2, (0:1:700)), label="Autocorrelation of x_1^2")
     plot!(x -> 0, lwd = 3, label="")
@@ -215,11 +222,11 @@
 
     h = d^-1
     Nsrw::Int64 = 1000000
-    stepssrw::Int64 = 180 #25 seconds
+    stepssrw::Int64 = 1500 #6 hours 20mins ish
     
     beta = 1.1
-    burninsrw = Nsrw/2000
-    adaptlengthsrw = Nsrw/2000
+    burninsrw = Nsrw/8000
+    adaptlengthsrw = Nsrw/8000
     R = 1e9
     r = 1e-3
     forgetrate = 3/4
@@ -246,7 +253,7 @@
     plot((1:Nsrw)*stepssrw, srwout.x[:,1], label = "x1")
     vline!(stepssrw*cumsum(srwout.times[1:end-1]), label = "Adaptations", lw = 0.5)
 
-    plot((1:Nsrw)*stepssrw,srwout.z[:,end], label = "z_{d+1}", legend=:bottom)
+    plot((1:Nsrw)*stepssrw,srwout.z[:,end], label = "z_{d+1}", legend=:top)
     vline!(stepssrw*cumsum(srwout.times[1:end-1]), label = "Adaptations", lw = 0.5)
 
 
@@ -255,8 +262,6 @@
 
     plot((0:1:700)*stepssrw,autocor(srwout.z[:,end], 0:1:700), label="Autocorrelation of z_{d+1}")
     plot!(x -> 0, lwd = 3, label="")
-
-    #savefig("SRWautocorbanana2.pdf")
 
     #savefig("ASRWz.pdf")
 
