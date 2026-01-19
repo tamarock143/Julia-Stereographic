@@ -12,12 +12,13 @@
     using SpecialFunctions
     using StatsBase
     using JLD
+    using LaTeXStrings
 
     d = 200
     nu = 2
 
     sigma = sqrt(d)I(d)
-    mu = zeros(d)
+    mu = zeros(d) .+ 1e3
 
     d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]))[1]
 
@@ -46,8 +47,8 @@
 
 ### SBPS Testing
 
-    T = 6000 #0 to 3000 took ~20 mins. 3000 to 4500 took ~3.5 hours. 4500 to 6000 took ~40mins
-    delta = 0.01
+    T = 10000 #0 to 3000 took ~20 mins. 3000 to 4500 took ~3.5 hours. 4500 to 6000 took ~40mins
+    delta = 0.05
     Tbrent = pi/2
     Epsbrent = 0.01
     Abrent = 1.01
@@ -63,7 +64,7 @@
     forgetrate = 3/4
     lambdageom = 10
 
-    @time out = SBPSAdaptiveGeom(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Abrent, Nbrent, tol, sigma, mu, burnin, adaptlength, forgetrate, updategamma = true, updatelambda = true);
+    @time out = SBPSAdaptiveGeom(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Abrent, Nbrent, tol, sigma, mu, burnin, adaptlength, forgetrate, updategamma = true, updatelambda = false);
     save("out.jld","out",out)
 
     out = load("out.jld")["out"]
@@ -83,14 +84,6 @@
         return (z = zout, v = vout, x = xout, events = eventsout, bounceratio = bounceratio, Nevals = Nevals, Tbrent = Tout)
     end
 
-    for lambda in 1:10
-        @time out = FullSBPSGeom(lambda)
-
-        save("out_$lambda.jld","out",out)
-    end
-
-    #@time out = FullSBPSGeom(lambda);
-
     #Plot comparison against the true distribution
     p(x) = 1/sqrt(2pi)*exp(-x^2/2)
     #q(x) = 1/sqrt(2pi*sigmaf)*exp(-x^2/2sigmaf)
@@ -103,15 +96,19 @@
     xlabel!("x")
     ylabel!("P(x)")
 
-    plot(0:delta:T,out.x[:,1], label = "x1")
+    plot(0:delta:T,out.x[:,1], label = "x_1")
     vline!(cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
-    plot!(0:delta:T,out.x[:,2], label = "x2")
 
     plot(0:delta:T,out.z[:,end], label = "z_{d+1}")
     vline!(cumsum(out.times[1:end-1]), label = "Adaptations")
-    plot(out.v[:,end], label = "v_{d+1}")
 
-    plot((0:1:700)*delta,autocor(out.x[:,1].^2, 0:1:700), label = "Autocorrelation of x_1^2")
+    plot(0:delta:T, 1/d*sum(out.z[:,1:d], dims=2), label = "sum(z_{1:d})/d", legend=:topleft)
+    vline!(stepsslice*cumsum(sliceout.times[1:end-1]), label = "Adaptations", lw = 0.5)
+    
+    plot(delta*cumsum(out.times), sum(out.Neval, dims=1) ./ out.times/ delta, label="Proposals per step")
+
+
+    plot((0:1:5000)*delta,autocor(sum(out.x.^2, dims=2), 0:1:5000), label = "Autocorrelation of x_1^2")
     plot!(x -> 0, lwd = 3, label = "")
 
     plot((0:1:700)*delta,autocor(out.z[:,end], 0:1:700), label = "Autocorrelation of z_{d+1}")
@@ -126,35 +123,16 @@
     #map(x -> sum(x -> x^2, x - mu), eachrow(out.mu))
     #map(x -> sum(x -> x^2, eigen(x - sqrt(d)I(d)).values), out.sigma)
 
-    myanim = @animate for i in 1:size(out.x)[1]
-        myplot = plot(1, xlim = (-10,10), ylim = (-10,10), label="",framestyle=:origin)
-        plot!(myplot, out.x[1:i,1], out.x[1:i,2], color=1, label="")
-        scatter!(myplot, [out.x[i,1]], [out.x[i,2]], c=:red, label="")
-        myplot
-    end every 50
-
-    gif(myanim)
-    gif(myanim, "SBPS.mp4")
-
-    #plot(out.x[:,1].^2,out.z[:,end])
-    histogram2d(out.x[:,1], out.x[:,2], bins=(1000,1000),normalize=:pdf)
-
-    mean(out.z[:,end])
-
-    #savefig("ASBPSz.pdf")
-
-    plot(sum(out.Nevals, dims=2)./out.times)
-
 
 ### SSS Tests
 
-    Nslice::Int64 = 1000000
-    stepsslice::Int64 = 2 #30 seconds
+    Nslice::Int64 = 150000 #3 mins with 20 steps
+    stepsslice::Int64 = 20 #30 seconds
 
     beta = 1.1
     burninslice = Nslice/2000
     adaptlengthslice = Nslice/2000
-    R = 1e9
+    R = 1e6
     r = 1e-3
     forgetrate = 3/4
     
@@ -176,12 +154,16 @@
     xlabel!("x")
     ylabel!("P(x)")
 
-    plot(1:stepsslice:Nslice*stepsslice,sliceout.x[:,1], label = "x1")
+    plot(1:stepsslice:Nslice*stepsslice,sliceout.x[:,1], label = "x_1")
     vline!(stepsslice*cumsum(sliceout.times[1:end-1]), label = "Adaptations", lw = 0.5)
 
     plot(1:stepsslice:Nslice*stepsslice,sliceout.z[:,end], label = "z_{d+1}")
     vline!(stepsslice*cumsum(sliceout.times[1:end-1]), label = "Adaptations", lw = 0.5)
 
+    plot(1:stepsslice:Nslice*stepsslice,1/d*sum(sliceout.z[:,1:d],dims=2), label = "sum(z_{1:d})/d", legend=:topleft)
+    vline!(stepsslice*cumsum(sliceout.times[1:end-1]), label = "Adaptations", lw = 0.5)
+
+    plot(stepsslice*cumsum(sliceout.times), sliceout.Nprop ./ sliceout.times/ stepsslice, label="Proposals per step")
 
     plot((0:1:700)*stepsslice,autocor(sliceout.x[:,1].^2, (0:1:700)), label="Autocorrelation of x_1^2")
     plot!(x -> 0, lwd = 3, label="")
@@ -214,8 +196,8 @@
 ### SRW Tests
 
     h = d^-1
-    Nsrw::Int64 = 1000000
-    stepssrw::Int64 = 180 #25 seconds
+    Nsrw::Int64 = 150000
+    stepssrw::Int64 = 20 #25 seconds
     
     beta = 1.1
     burninsrw = Nsrw/2000
@@ -351,80 +333,20 @@
 
 ### Misc Tests
 
-    #P(|T| > a) for T ~ t_nu in d dimensions
-    Z(a) = beta_inc(d/2,nu/2,d*a/(d*a+nu))[2]
-
-    #Output norms of SBPS process
-    mySBPStest = function ()
-        @time out = SBPSAdaptive(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Epsbrent, tol, sigma, mu, burnin, adaptlength);
-
-        xnorms = vec(sum(out.x.^2, dims=2))
-
-        return(xnorms)
-    end
-
-    #Output norms of SRW process
-    mySRWtest = function ()
-        @time srwout = SRWAdaptive(f, x0, h, Nsrw, beta, r, R; sigma, mu, burnin = burninsrw, adaptlength = adaptlengthsrw);
-
-        srwxnorms = vec(sum(srwout.x.^2, dims=2))
-        
-        return(srwxnorms)
-    end
-
-    #Output norms of HMC process
-    myHMCtest = function ()
-        @time hmcout = HMC(f, gradlogf, x0, N, hmcdelta, L; M = M)
-
-        hmcxnorms = vec(sum(hmcout.x .^2, dims=2))
-        
-        return(hmcxnorms)
-    end
-
-    #Output norms of SSS process
-    mySSStest = function ()
-        @time sliceout = SliceAdaptive(f, x0, Nslice, beta, r, R; sigma, mu, burnin = burninslice, adaptlength = adaptlengthslice);
-
-        slicexnorms = vec(sum(sliceout.x .^2, dims=2))
-        
-        return(slicexnorms)
-    end
-
-    p = plot(10 .^(-2:0.1:9), a -> abs(sum(xnorms/d .>= a)/length(xnorms) - Z(a))/Z(a), label = "SBPS")
-    plot!(p, xscale=:log10, yscale=:log10, minorgrid=true)
-    plot!(p, 10 .^(-2:0.1:9), a -> abs(sum(srwxnorms/d .>= a)/length(srwxnorms) - Z(a))/Z(a), label = "SRW")
-    plot!(p, 10 .^(-2:0.1:9), a -> abs(sum(hmcxnorms/d .>= a)/length(hmcxnorms) - Z(a))/Z(a), label = "HMC")
-    plot!(p, 10 .^(-2:0.1:9), a -> abs(sum(slicexnorms/d .>= a)/length(slicexnorms) - Z(a))/Z(a), label = "Slice")
-    plot!(p, legend=:bottomright)
-    title!(p, "Log Absolute Relative Error for CCDF of norm of a t-distribution\nwith d = 2,  ν = 2 (Runtime of ~1000 seconds)", titlefontsize = 10)
-
-    savefig("tNormDistComparisonSSS.pdf")
-
-
-    out = load("sbps.jld")["SBPS"]
-    hmcout = load("hmc.jld")["HMC"]
-
-    xnorms = load("xnorms.jld")["xnorms"]
-    hmcxnorms = load("hmcxnorms.jld")["hmcxnorms"]
-
-    srwxnorms = load("srwxnorms.jld")["srwxnorms"]
-    slicexnorms = load("slicexnorms.jld")["slicexnorms"]
-
     p = plot()
-    z = range(-1,1,length=2001)[2:end-1]
-    radius(d) = d^1.3
+    sigma = sqrt(d)I(d)
+    mu = zeros(d)
 
-    for d in [1,5,10,50,100,1000]
-        stephist!(p,collect(z), weights= map(z -> exp(-radius(d)/(1-z) -d*log(1-z) +d/2*log(1-z^2) + (d+radius(d))/2 -d/2*log(d) +d/2*log(radius(d))),z),
-        bins=z,normalize=:pdf,label="d=$d",lwd=3)
-    end
-    plot!(xlim=xlims(), ylim=ylims())
+    @time out = SBPSAdaptiveGeom(gradlogf, x0, lambda, T, delta, beta, r, R; Tbrent, Abrent, Nbrent, tol, sigma, mu, burnin, adaptlength, forgetrate, updategamma = false, updatelambda = true);
+    plot!(p,(0:1:1000)*delta,autocor(sum(out.x.^2, dims=2), 0:1:1000), label = "Inf")
+    #plot!(p, (0:1:1200)*stepssrw, autocor(sum(out.x.^2, dims=2), 0:1:1200), label = "∞")
 
-    for d in [10000]
-        stephist!(p,collect(z), weights= map(z -> exp(-radius(d)/(1-z) -d*log(1-z) +d/2*log(1-z^2) + (d+radius(d))/2 -d/2*log(d) +d/2*log(radius(d))),z),
-        bins=z,normalize=:pdf,label="d=$d",lwd=3)
-    end
-
-    p 
-
-    savefig("NormLatitudeDensitiesBigVar.pdf")
+    cost = zeros(6)
+    lambdas = zeros(6)
+    cost[1] = sum(out.Nevals)/T
+    lambdas[1] = out.lambda[end]
+    i=2
+ 
+    plot(p)
+    plot(cost, xticks = (1:6,["∞","10000","5000","1000","500","200"]), label="Gradient Evaluations per unit time")
+    plot(lambdas, xticks = (1:6,["∞","10000","5000","1000","500","200"]), label="Refreshment rate")

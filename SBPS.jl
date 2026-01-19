@@ -46,7 +46,7 @@ SBPSSimulator = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1
     #Set up Bounce rate function
     bouncerate = SBPSRate(gradlogf)
 
-    bounceindic = Vector{Bool}()
+    bounceindic = Bool[0] #We start with a 0 to avoid the case of no events leading to NaNs
 
     #Start counter of number of gradient evaluations, separated between those used in optimisation and thinning
     Nopt = Nthin = 0
@@ -208,7 +208,7 @@ SBPSGeom = function(gradlogf, x0, lambda, T, delta; w = missing, Tbrent = 1, Abr
     #Set up Bounce rate function
     bouncerate = SBPSRate(gradlogf)
 
-    bounceindic = Vector{Bool}()
+    bounceindic = Bool[0]
 
     #Start counter of number of gradient evaluations, separated between those used in optimisation and thinning
     Nopt = Nthin = 0
