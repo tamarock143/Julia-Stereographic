@@ -217,3 +217,61 @@ PoissonStepSim = function (lambda,t; tau0 = 0)
     #Otherwise, return the event time and the bound at that time
     noevent ? (return (time = Inf, bound = Inf)) : return (time = tau, bound = lambda[i])
 end
+
+## Sub-Cauchy Projection ##
+
+#Sub-Cauchy Projection from z to x
+SubC = function (z; sigma = sqrt(length(z)-1)I(length(z)-1)/2, mu = zeros(length(z)-1), obs = vcat(zeros(length(z)-1),[2]), jacobian = false, sigmainv = missing)
+    #Check that norm(z) == 1
+    abs(sum(z.^2) -1) >= 1e-12 && error("norm(z) != 1")
+
+    #Check that z[end] < obs[end] - 1
+    z[end] >= obs[end]-1 && error("z[d+1] >= obs[d+1]-1")
+
+    #Image before affine transformation
+    y = obs[end]/(obs[end]-z[end]-1)*z[1:end-1] - (z[end]+1)/(obs[end]-1-z[end])*obs[1:end-1]
+
+    #Image after affine transformation
+    x = sigma*y + mu
+
+    #If we want jacobian, we calculate it here
+    if jacobian
+        yminobs = y - obs[1:end-1]
+        ynorm = sum(yminobs.^2)
+        ydot = sum(yminobs .* obs[1:end-1])
+
+        M = (-(ydot - obs[end]*(obs[end]-1)) + sqrt((ydot - obs[end]*(obs[end]-1))^2 - (ynorm + obs[end]^2)*(sum(obs[1:end-1].^2) + obs[end]^2 - 2*obs[end])))/(ynorm + obs[end]^2)
+
+        J = (M*ynorm + ydot + obs[end] - obs[end]^2*(1-M))/(M^d * obs[end])
+        
+        return (x = x, jacobian = J)
+    else
+        return x
+    end
+end
+
+#Sub-Cauchy Projection from x to z
+SubCinv = function (x; sigma = sqrt(length(x))I(length(x))/2, mu = zeros(length(x)), obs = vcat(zeros(length(x)),[2]), isinv = false, jacobian=false)
+    isinv ? y = sigma*(x.-mu) : y = inv(sigma)*(x.-mu)
+
+    #Precalculate quantities
+    yminobs = y - obs[1:end-1]
+    ynorm = sum(yminobs.^2)
+    ydot = sum(yminobs .* obs[1:end-1])
+
+    M = (-(ydot - obs[end]*(obs[end]-1)) + sqrt((ydot - obs[end]*(obs[end]-1))^2 - (ynorm + obs[end]^2)*(sum(obs[1:end-1].^2) + obs[end]^2 - 2*obs[end])))/(ynorm + obs[end]^2)
+
+    #Calculate output
+    z = Vector{Float64}(undef, length(x)+1)
+
+    z[1:end-1] = M*y + (1-M)*obs[1:end-1]
+    z[end] = (1-M)*obs[end]-1
+
+    if jacobian 
+        J = (M*ynorm + ydot + obs[end] - obs[end]^2*(1-M))/(M^d * obs[end])
+        return (z = z, jacobian = J)
+    else
+        return z
+    end
+end
+
