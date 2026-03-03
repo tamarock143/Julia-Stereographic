@@ -15,7 +15,7 @@
     using JLD
     using LaTeXStrings
 
-#Tests
+#Optimal Scaling Tests
     d = 50000
     l = 1
     h = l*d^(-1/6)
@@ -128,3 +128,49 @@
 
     mytest = barkertest(10000);
 
+#Rotate Barker Sim Tests
+
+    d = 10
+    nu = 5
+
+    sigma = sqrt(d)I(d)
+    mu = zeros(d)
+
+    d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]))[1]
+
+    #banana(x; b=0) = vcat(x[1] + b*x[2]^2,x[2:end])
+
+    #f = x -> -sum(x.^2)/2
+    f = x -> -(nu+d)/2*log(nu + sum(x.^2))
+
+    #b=0
+
+    #f = x -> test(banana(x; b=b))
+    #f = x -> test(banana(x; b=b))
+    #f = test
+    #f = x -> -sum(x.^2)/2
+
+    #Set up gradient
+    d > 1 ? gradlogf = x -> ForwardDiff.gradient(f,x) : gradlogf = x -> ForwardDiff.derivative(f,x)
+
+    #This is here to precalculate the gradient function
+    gradlogf(x0)
+
+    N = 100000
+    h = 1.5d^(-1/6)
+    
+    @time out = RotateBarkerSim(f, gradlogf, x0, h, N; includefirst = true, steps = 1, printing = false)
+
+    plot(out.x[:,1])
+    
+    #Plot comparison against the true distribution
+    p(x) = 1/sqrt(2pi)*exp(-x^2/2)
+    #q(x) = 1/sqrt(2pi*sigmaf)*exp(-x^2/2sigmaf)
+    q(x) = gamma((nu+1)/2)/(sqrt(nu*pi)*gamma(nu/2))*(1+x^2/nu)^-((nu+1)/2)
+    b_range = range(-10,10, length=101)
+
+    histogram(out.x[:,1], label="Experimental", bins=b_range, normalize=:pdf, color=:gray)
+    plot!(p, label= "N(0,1)", lw=3)
+    plot!(q, label= "t", lw=3)
+    xlabel!("x")
+    ylabel!("P(x)")

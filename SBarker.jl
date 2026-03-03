@@ -13,6 +13,9 @@ RotatezN = function (z,v)
     
     length(z) != length(v) && error("length(z) != length(v)") 
 
+    #Include South Pole case
+    z[end] == -1 && return(-v)
+
     #Prepare output
     out = zeros(length(z))
 
@@ -35,6 +38,9 @@ RotatezNinv = function (z,v)
     abs(sum(v.^2) - 1) >= 1e-12 && error("|v| != 1") 
     
     length(z) != length(v) && error("length(z) != length(v)") 
+
+    #Include South Pole case
+    z[end] == -1 && return(-v)
 
     #Prepare output
     out = zeros(length(z))
@@ -67,8 +73,11 @@ Rotategrad1 = function (grad,y)
     y1 = sum(y)/sqrt(d)
     graddoty = sum(gradnorm.*y)
 
+    #Include -1 case
+    grad1 == -1 && return(-y)
+
     #Return rotation
-    return(y + ((graddoty*(1+ 2grad1) - y1)*ones(d)/sqrt(d) - (y1 + graddoty)*gradnorm)/(1 + grad1))
+    return(y .+ ((graddoty*(1+ 2grad1) - y1)*ones(d)/sqrt(d) .- (y1 + graddoty)*gradnorm)/(1 + grad1))
 end
 
 #Rotation operator which moves grad to ones(d), applied to y
@@ -88,8 +97,11 @@ Rotategrad1inv = function (grad,y)
     y1 = sum(y)/sqrt(d)
     graddoty = sum(gradnorm.*y)
 
+    #Include -1 case
+    grad1 == -1 && return(-y)
+
     #Return rotation
-    return(y + ((y1*(1+ 2grad1) - graddoty)*gradnorm - (graddoty + y1)*ones(d)/sqrt(d))/(1 + grad1))
+    return(y .+ ((y1*(1+ 2grad1) - graddoty)*gradnorm .- (graddoty + y1)*ones(d)/sqrt(d))/(1 + grad1))
 end
 
 #Barker step flipping against directional gradient
@@ -122,7 +134,7 @@ end
 #Rotate Barker Simulator
 RotateBarkerSim = function (logf, gradlogf, x0, h, N; includefirst = true, steps = 1, printing = false)
     d = length(x0) #The dimension
-    d < 2 && error("Still working on d=1 case")
+    #d < 2 && error("Still working on d=1 case")
 
     #Prepare output
     xout = zeros(N,d)
@@ -140,7 +152,7 @@ RotateBarkerSim = function (logf, gradlogf, x0, h, N; includefirst = true, steps
     x = x0 #Position vector, initialised at x0
     
     fx = logf(x) #Precalculate density at position
-    gradx = gradlogf(x) #Precalculate gradient at position
+    d > 1 ? gradx = gradlogf(x) : gradx = gradlogf(x[1]) #Precalculate gradient at position
     normgradx = norm(gradx) #Precalculate norm(gradient) at position
     
     aout = 0 # Track acceptance rate
@@ -158,16 +170,17 @@ RotateBarkerSim = function (logf, gradlogf, x0, h, N; includefirst = true, steps
             y = BarkerStep(normgradx/sqrt(d)*ones(d),v)
             
             #Proposal position, log-density and gradient
-            xprime = x + Rotategrad1inv(gradx, y)
+            xprime = x .+ Rotategrad1inv(gradx, y)
 
             fxprime = logf(xprime)
-            gradxprime = gradlogf(xprime)
+            d > 1 ? gradxprime = gradlogf(xprime) : gradxprime = gradlogf(xprime[1])
+            normgradxprime = norm(gradxprime)
 
             #Calculate reverse step
-            yprime = Rotategrad1(gradxprime,x-xprime)
+            yprime = Rotategrad1(gradxprime,x.-xprime)
 
             #Compute acceptance probability
-            a = fxprime - fx + sum(log.(1 .+ exp.(-y.*gradx/sqrt(d)))) - sum(log.(1 .+ exp.(-yprime.*gradxprime/sqrt(d))))
+            a = fxprime - fx + sum(log.(1 .+ exp.(-y*normgradx/sqrt(d)))) - sum(log.(1 .+ exp.(-yprime*normgradxprime/sqrt(d))))
 
             u = log(rand(Float64)) #Simulate from uniform to accept/reject
 
