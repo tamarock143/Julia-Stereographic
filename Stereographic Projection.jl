@@ -242,7 +242,7 @@ SubC = function (z; sigma = sqrt(length(z)-1)I(length(z)-1)/2, mu = zeros(length
 
         M = (-(ydot - obs[end]*(obs[end]-1)) + sqrt((ydot - obs[end]*(obs[end]-1))^2 - (ynorm + obs[end]^2)*(sum(obs[1:end-1].^2) + obs[end]^2 - 2*obs[end])))/(ynorm + obs[end]^2)
 
-        J = (M*ynorm + ydot + obs[end] - obs[end]^2*(1-M))/(M^d * obs[end])
+        J = (M*ynorm + ydot + obs[end] - obs[end]^2*(1-M))/(M^length(x) * obs[end])
         
         return (x = x, jacobian = J)
     else
@@ -268,7 +268,7 @@ SubCinv = function (x; sigma = sqrt(length(x))I(length(x))/2, mu = zeros(length(
     z[end] = (1-M)*obs[end]-1
 
     if jacobian 
-        J = (M*ynorm + ydot + obs[end] - obs[end]^2*(1-M))/(M^d * obs[end])
+        J = (M*ynorm + ydot + obs[end] - obs[end]^2*(1-M))/(M^length(x) * obs[end])
         return (z = z, jacobian = J)
     else
         return z
