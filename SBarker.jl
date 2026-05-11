@@ -9,8 +9,6 @@ RotatezN = function (z,v)
     #Ensure we are on the sphere, length(z)==length(v)
     abs(sum(z.^2) - 1) >= 1e-12 && error("norm(z) != 1") 
     
-    abs(sum(v.^2) - 1) >= 1e-12 && error("|v| != 1") 
-    
     length(z) != length(v) && error("length(z) != length(v)") 
 
     #Include South Pole case
@@ -34,8 +32,6 @@ end
 RotatezNinv = function (z,v)
     #Ensure we are on the sphere, length(z)==length(v)
     abs(sum(z.^2) - 1) >= 1e-12 && error("norm(z) != 1") 
-    
-    abs(sum(v.^2) - 1) >= 1e-12 && error("|v| != 1") 
     
     length(z) != length(v) && error("length(z) != length(v)") 
 
@@ -65,8 +61,11 @@ Rotategrad1 = function (grad,y)
     #Dimension
     d = length(grad)
 
-    #Normalise gradient
-    gradnorm = normalize(grad)
+    #Normalise gradient, covering for case where norm(grad)=0
+    #If norm(grad) is equal to 0, doesn't matter what direction we rotate
+    tempnorm = norm(grad)
+    tempnorm > 0 ? gradnorm = grad/tempnorm : gradnorm = ones(d)
+    #gradnorm = normalize(grad)
 
     #Precalculate relevant sums
     grad1 = sum(gradnorm)/sqrt(d)
@@ -89,8 +88,12 @@ Rotategrad1inv = function (grad,y)
     #Dimension
     d = length(grad)
 
-    #Normalise gradient
-    gradnorm = normalize(grad)
+    #Normalise gradient, covering for case where norm(grad)=0
+    #If norm(grad) is equal to 0, doesn't matter what direction we rotate
+    tempnorm = norm(grad)
+    tempnorm > 0 ? gradnorm = grad/tempnorm : gradnorm = ones(d)
+
+    #gradnorm = normalize(grad)
 
     #Precalculate relevant sums
     grad1 = sum(gradnorm)/sqrt(d)
@@ -126,15 +129,15 @@ BarkerStep = function (grad,v)
     flips = u .> pflip
 
     #Flip appropriate terms
-    @. y *= (-1).^flips
+    #Need term in case d=1
+    d > 1 ? y .*= (-1).^flips : y *= (-1).^flips[]
 
     return(y)
 end
 
 #Rotate Barker Simulator
-RotateBarkerSim = function (logf, gradlogf, x0, h, N; includefirst = true, steps = 1, printing = false)
+RotateBarkerSim = function (logf, x0, h, N; gradlogf = missing, includefirst = true, steps = 1, printing = false)
     d = length(x0) #The dimension
-    #d < 2 && error("Still working on d=1 case")
 
     #Prepare output
     xout = zeros(N,d)
@@ -151,6 +154,11 @@ RotateBarkerSim = function (logf, gradlogf, x0, h, N; includefirst = true, steps
 
     x = x0 #Position vector, initialised at x0
     
+    #Construct gradient of logf, if not specified
+    if ismissing(gradlogf)
+        d > 1 ? gradlogf = x -> ForwardDiff.gradient(logf,x) : gradlogf = x -> ForwardDiff.derivative(logf,x)
+    end
+
     fx = logf(x) #Precalculate density at position
     d > 1 ? gradx = gradlogf(x) : gradx = gradlogf(x[1]) #Precalculate gradient at position
     normgradx = norm(gradx) #Precalculate norm(gradient) at position
@@ -189,7 +197,7 @@ RotateBarkerSim = function (logf, gradlogf, x0, h, N; includefirst = true, steps
                 x = xprime 
                 fx = fxprime
                 gradx = gradxprime
-                normgradx = norm(gradx)
+                normgradx = normgradxprime
 
                 aout += 1/(N*steps-1)
             end
@@ -201,4 +209,107 @@ RotateBarkerSim = function (logf, gradlogf, x0, h, N; includefirst = true, steps
     println()
 
     return (x = xout, a = aout)
+end
+
+#Stereographic Barker Simulator
+StereoBarkerSim = function (logf, x0, h, N; gradlogf = missing, sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), includefirst = true, steps = 1, printing = false)
+    d = length(x0) #The dimension
+
+    z = SPinv(x0; sigma = sigma, mu = mu, isinv = false) #Map to the sphere
+
+    #Prepare output
+    xout = zeros(N,d)
+    zout = zeros(N,d+1)
+
+    #Slightly convoluted method for not storing the initial value WITHOUT allocating memory for an entirely new matrix
+    if includefirst
+        #If we want to include the first value, initialise the outputs
+        indexes = 2:N
+        xout[1,:] .= x0
+        zout[1,:] .= z
+    else
+        #If we don't, start the indexes to be inputted at 1
+        indexes = 1:N
+    end
+
+    x = x0 #Position vector, initialised at x0
+    
+    #Calculate log-density on the sphere
+    densz = logf(x) - d*log(1-z[end])
+
+    aout = 0 # Track acceptance rate
+
+    #Construct gradient of logf, if not specified
+    if ismissing(gradlogf)
+        d > 1 ? gradlogf = x -> ForwardDiff.gradient(logf,x) : gradlogf = x -> ForwardDiff.derivative(logf,x)
+    end
+    
+    #Set up gradient of potential on the sphere
+    gradstereo = SPgradlog(gradlogf)
+    gradz = gradstereo(z; sigma=sigma, mu=mu).gradz
+
+    #Orthogonalise gradient
+    gradz -= sum(z .* gradz)*z
+
+    normgradz = norm(gradz) #Norm of gradient for Barker steps
+
+    for n in indexes
+        #Print iteration number
+        printing && print("\rStep number: $n")
+
+        #We only sample one point after several steps
+        for _ in 1:steps
+            #Initialise step
+            v = h*randn(d)
+
+            #Flip steps
+            y = BarkerStep(normgradz/sqrt(d)*ones(d),v)
+            
+            #Calculate rotated position
+            g = RotatezN(z,gradz)[1:end-1] #gradient when z rotated to N
+
+            zprime = z + RotatezNinv(z,vcat(Rotategrad1inv(g,y),[0])) #Add on rotated step
+            normalize!(zprime) #project down to sphere
+
+            #Calculate gradient and projection at proposal
+            (gradprime, xprime) = gradstereo(zprime; sigma=sigma, mu=mu)
+            
+            #Orthogonalise gradient
+            gradprime -= sum(zprime .* gradprime)*zprime
+
+            #Calculate log-density on the sphere
+            densprime = logf(xprime) - d*log(1-zprime[end])
+            
+            #Normalise gradient for reverse Barker step
+            normgradprime = norm(gradprime)
+
+            #Calculate reverse step
+            gprime = RotatezN(zprime,gradprime)[1:end-1] #gradient when zprime rotated to N
+
+            yprime = Rotategrad1(gprime, RotatezN(zprime, z/sum(z .* zprime) - zprime)[1:end-1]) #Reverse Barker proposal step 
+
+            #Compute acceptance probability
+            a = densprime - densz + sum(log.(1 .+ exp.(-y*normgradz/sqrt(d)))) - sum(log.(1 .+ exp.(-yprime*normgradprime/sqrt(d))))
+
+            u = log(rand(Float64)) #Simulate from uniform to accept/reject
+
+            if u < a #Accept proposal
+                #Update position, density, gradient
+                x = xprime
+                z = zprime
+                densz = densprime
+                gradz = gradprime
+                normgradz = normgradprime
+
+                aout += 1/(N*steps-1)
+            end
+        end
+
+        #Add to output
+        xout[n,:] .= x
+        zout[n,:] = z
+    end
+    println()
+
+    return (x = xout, z = zout, a = aout)
 end
