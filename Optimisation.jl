@@ -229,3 +229,78 @@ RobMonro = function (f, x, theta, step, N; lower = 0, upper = 1)
 
     return(theta)
 end
+
+#Stochastic Gradient Descent algorithm
+#We consider minimusing a function F(theta) = sum(x -> f.(x,theta))
+SGD = function (f, x, theta, step; N = 1000, grad = missing)
+    s = size(x)
+
+    out = theta
+
+    #Define gradient if missing
+    if ismissing(grad)
+        #Need d=1 case covered
+        if length(theta) > 1
+            grad = (x,t) -> ForwardDiff.gradient(y -> f(x,y),t)
+        else
+            grad = (x,t) -> ForwardDiff.derivative(y -> f(x,y),t)
+        end
+    end
+
+    for i in 1:N
+        #stochastic gradient for x a collection of scalars or vectors
+        length(s) > 1 ? g = grad(x[rand(1:s[1]),:], theta) : g = grad(x[rand(1:s[1])], theta)
+
+        #SGD step for theta, randomly sample a row from x
+        theta -= step/sqrt(i)*g
+
+        #update running sum
+        out += theta
+    end
+
+    return out/(N+1)
+end
+
+#ADAM optimiser
+#We consider minimising a function F(theta) = sum(x -> f.(x,theta))
+#Steps like 1/sqrt(t) at step t
+ADAM = function (f, x, theta, steps; N = 1000, b = [0.9,0.9999], epsilon = 1e-8, grad = missing, lambda = 1 - 1e-8)
+    s = size(x)
+    dtheta = length(theta)
+
+    #Define gradient if missing
+    if ismissing(grad)
+        #Need d=1 case covered
+        if dtheta > 1
+            grad = (x,t) -> ForwardDiff.gradient(y -> f(x,y),t)
+        else
+            grad = (x,t) -> ForwardDiff.derivative(y -> f(x,y),t)
+        end
+    end
+
+    #initialise momentum and second-order terms
+    if dtheta > 1
+        m = zeros(dtheta) #momentum term
+        v = zeros(dtheta) #second-order term
+    else
+        m = 0 #momentum term
+        v = 0 #second-order term
+    end
+
+    for t in 1:N
+        #stochastic gradient for x a collection of scalars or vectors
+        length(s) > 1 ? g = grad(x[rand(1:s[1]),:], theta) : g = grad(x[rand(1:s[1])], theta)
+
+        #Update momentum and curvature
+        m *= b[1]
+        m += (1-b[1])*g
+
+        v *= b[2]
+        v += (1-b[2])*g.^2
+
+        #theta update, formatting to accommodate dimension
+        theta -= (sqrt(1-b[2]^t)/(1-b[1]^t)*steps/sqrt(t)*m./(sqrt.(v) .+ epsilon))
+    end
+
+    return theta
+end

@@ -23,11 +23,11 @@
 
     #banana(x; b=0) = vcat(x[1] + b*x[2]^2,x[2:end])
 
-    #f = x -> -sum(x.^2 ./(1 .+ abs.(x)))
-    f = x -> -(nu+d)/2*log(nu + sum(x.^2))
+    f = (x,theta) -> sum((x-theta).^2)/2 + sum(theta.^2)/2
+    #f = x -> -(nu+d)/2*log(nu + sum(x.^2))
 
     #b=0
-
+    
     #f = x -> test(banana(x; b=b))
     #f = x -> test(banana(x; b=b))
     #f = test

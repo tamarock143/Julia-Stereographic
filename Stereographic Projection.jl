@@ -225,8 +225,9 @@ SubC = function (z; sigma = sqrt(length(z)-1)I(length(z)-1)/2, mu = zeros(length
     #Check that norm(z) == 1
     abs(sum(z.^2) -1) >= 1e-12 && error("norm(z) != 1")
 
-    #Check that z[end] < obs[end] - 1
+    #Check that z[end] < obs[end] - 1 and obs inside sphere
     z[end] >= obs[end]-1 && error("z[d+1] >= obs[d+1]-1")
+    sum(x -> x^2, obs[1:end-1]) + (obs[end]-1)^2 > 1 && error("obs outside sphere")
 
     #Image before affine transformation
     y = obs[end]/(obs[end]-z[end]-1)*z[1:end-1] - (z[end]+1)/(obs[end]-1-z[end])*obs[1:end-1]
@@ -242,7 +243,7 @@ SubC = function (z; sigma = sqrt(length(z)-1)I(length(z)-1)/2, mu = zeros(length
 
         M = (-(ydot - obs[end]*(obs[end]-1)) + sqrt((ydot - obs[end]*(obs[end]-1))^2 - (ynorm + obs[end]^2)*(sum(obs[1:end-1].^2) + obs[end]^2 - 2*obs[end])))/(ynorm + obs[end]^2)
 
-        J = (M*ynorm + ydot + obs[end] - obs[end]^2*(1-M))/(M^length(x) * obs[end])
+        J = det(sigma)*(M*ynorm + ydot + obs[end] - obs[end]^2*(1-M))/(M^length(x) * obs[end])
         
         return (x = x, jacobian = J)
     else
@@ -253,6 +254,9 @@ end
 #Sub-Cauchy Projection from x to z
 SubCinv = function (x; sigma = sqrt(length(x))I(length(x))/2, mu = zeros(length(x)), obs = vcat(zeros(length(x)),[2]), isinv = false, jacobian=false)
     isinv ? y = sigma*(x.-mu) : y = inv(sigma)*(x.-mu)
+
+    #check obs inside sphere
+    sum(x -> x^2, obs[1:end-1]) + (obs[end]-1)^2 > 1 && error("obs outside sphere")
 
     #Precalculate quantities
     yminobs = y - obs[1:end-1]
@@ -268,10 +272,30 @@ SubCinv = function (x; sigma = sqrt(length(x))I(length(x))/2, mu = zeros(length(
     z[end] = (1-M)*obs[end]-1
 
     if jacobian 
-        J = (M*ynorm + ydot + obs[end] - obs[end]^2*(1-M))/(M^length(x) * obs[end])
+        J = det(sigma)*(M*ynorm + ydot + obs[end] - obs[end]^2*(1-M))/(M^length(x) * obs[end])
         return (z = z, jacobian = J)
     else
         return z
     end
 end
 
+#Simulate uniform from light-side of sphere
+unifsim = function (n,d; obs = 2)
+    out = zeros(n,d+1)
+
+    for i in 1:n
+        #Initial candidate
+        z = normalize(randn(d+1))
+
+        while true
+            #Is z in the light side? Then accept
+            (z[end] < obs-1) && break
+            #If not, repeat
+            z = normalize(randn(d+1))
+        end
+
+        out[i,:] = z
+    end
+
+    return out
+end
