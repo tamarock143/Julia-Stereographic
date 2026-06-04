@@ -729,10 +729,10 @@
 
     save("BarkerProposal.png",myp)
 
-    grad = [8,0]
+    grad = [0,0]
     q(x,y) = 2/pi*exp(-(y^2+x^2)/2)/(1 + exp(-x*grad[1]))/(1 + exp(-y*grad[2]))
     
-    x = range(-1, 3, length=100)
+    x = range(-3, 3, length=100)
     y = range(-3, 3, length=100)
     z = @. q(x', y)
     myplot=contour(x, y, z, cbar=false, ylims=[-3,3], aspect_ratio=:equal)
