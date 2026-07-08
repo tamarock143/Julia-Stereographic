@@ -221,7 +221,7 @@ end
 ## Sub-Cauchy Projection ##
 
 #Sub-Cauchy Projection from z to x
-SubC = function (z; sigma = sqrt(length(z)-1)I(length(z)-1)/2, mu = zeros(length(z)-1), obs = vcat(zeros(length(z)-1),[2]), jacobian = false, sigmainv = missing)
+SubC = function (z; sigma = sqrt(length(z)-1)I(length(z)-1)/2, mu = zeros(length(z)-1), obs = vcat(zeros(length(z)-1),[2]), jacobian = false)
     #Check that norm(z) == 1
     abs(sum(z.^2) -1) >= 1e-12 && error("norm(z) != 1")
 
@@ -272,7 +272,7 @@ SubCinv = function (x; sigma = sqrt(length(x))I(length(x))/2, mu = zeros(length(
     z[end] = (1-M)*obs[end]-1
 
     if jacobian 
-        J = det(sigma)*(M*ynorm + ydot + obs[end] - obs[end]^2*(1-M))/(M^length(x) * obs[end])
+        J = det(sigma)^(1-2*isinv)*(M*ynorm + ydot + obs[end] - obs[end]^2*(1-M))/(M^length(x) * obs[end])
         return (z = z, jacobian = J)
     else
         return z

@@ -95,3 +95,95 @@ SliceSimulator = function(logf, x0, N; sigma = sqrt(length(x0))I(length(x0)), mu
 
     return (x = xout, z = zout, theta = thetaout, v = vout, Nprop = Nprop)
 end
+
+
+#We simulate an Elliptical Slice Sampler path targeting the disribtuion f
+EllipticalSliceSimulator = function(logf, x0, N; sigma = I(length(x0)), mu = zeros(length(x0)), includefirst = true, steps = 1, printing = false)
+    #Get sqare root and inverse of sigma
+    sigmainv = inv(sigma)
+    sigmasqrt = sqrt(sigma)
+
+    d = length(x0) #The dimension
+    
+    #Prepare output
+    xout = zeros(N,d)
+    thetaout = zeros(N+includefirst)
+    vout = zeros(N+includefirst,d)
+
+    #Slightly convoluted method for not storing the initial value WITHOUT allocating memory for an entirely new matrix
+    if includefirst
+        #If we want to include the first value, initialise the outputs
+        indexes = 2:N
+        xout[1,:] .= x0
+    else
+        #If we don't, start the indexes to be inputted at 1
+        indexes = 1:N
+    end
+
+    x = x0 #Position vector, initialised at x0
+
+    xminmu = x - mu
+    fx = logf(x) + transpose(xminmu)*sigmainv*xminmu/2 #Precalculate density at position w.r.t. the reference measure
+
+    theta = undef #Predefining output angle
+
+    Nprop = 0 #Predefine number of proposed points
+
+    for n in indexes
+        #Print iteration number
+        printing && print("\rStep number: $n")
+
+        #We only sample one point after several steps
+        for _ in 1:steps
+            t = log(rand()) + fx #Sample the (log)height of the level set
+
+            v = sigmasqrt*randn(d) + mu #Sample velocity to determine which ellipse we are following
+            vout[n-includefirst,:] .= v
+
+            theta = 2pi*rand() #Sample initial angle around the geodesic
+
+            Nprop += 1 #Increment number of proposals
+
+            #Initialise bracketing interval for shrinkage
+            thetamin = theta - 2pi
+            thetamax = theta
+
+            xprime = x*cos(theta) + v*sin(theta) #New proposed point
+            xminmuprime = xprime - mu
+
+            fxprime = logf(xprime) + transpose(xminmuprime)*sigmainv*xminmuprime/2 #Density at xprime
+
+            #We additionally include a timer to ensure the algorithm does not run indefinitely
+            k = 1
+
+            #Follow the shrinkage procedure until we hit a point inside the super-level set
+            while t >= fxprime && k <= 1e6
+                #On rejection, shrink the interval
+                theta > 0 ? thetamax = theta : thetamin = theta
+
+                #Resample position to be uniform inside the new interval
+                theta = (thetamax - thetamin)rand() + thetamin
+                
+                Nprop += 1 #Increment number of proposals
+
+                xprime = x*cos(theta) + v*sin(theta) #New proposed point
+                xminmuprime = xprime - mu
+
+                fxprime = logf(xprime) + transpose(xminmuprime)*sigmainv*xminmuprime/2 #Density at xprime
+
+                k += 1 #Increment number of steps
+            end
+
+            #If we hit the step threshold, reject the output
+            #Otherwise, update position in both Euclidean and Stereographic space
+            k <= 1e6 && ((x, fx) = (xprime, fxprime))
+        end
+
+        #Add to output
+        xout[n,:] .= x
+        thetaout[n-includefirst] = theta
+    end
+    println()
+
+    return (x = xout, theta = thetaout, v = vout, Nprop = Nprop)
+end
