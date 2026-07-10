@@ -624,25 +624,22 @@
 
 #Rotate Barker Sim Tests
 
-    d = 200
-    nu = 2
+    d = 50
+    nu = 3
+    b = 1
 
-    sigma = sqrt(d)I(d)
-    mu = zeros(d) .+ 1e3
+    sigma = diagm(vcat(10^4, 2*ones(d-1)))
+    mu = vcat(-100,zeros(d-1))
 
     d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]))[1]
 
-    #banana(x; b=0) = vcat(x[1] + b*x[2]^2,x[2:end])
-
     #logf = x -> -sum(x.^2)/2
-    logf = x -> -(nu+d)/2*log(nu + sum(x.^2))
+    #logf = x -> -(nu+d)/2*log(nu + sum(x.^2))
 
-    #b=0
+    banana(x; b=0) = vcat(x[1] + b*sum(x -> x^2,x[2:end]), x[2:end])
+    test = x -> -(nu+d)/2*log(nu + sum(x.^2))
 
-    #f = x -> test(banana(x; b=b))
-    #f = x -> test(banana(x; b=b))
-    #f = test
-    #f = x -> -sum(x.^2)/2
+    logf = x -> test(banana(x; b = b))
 
     #Set up gradient
     d > 1 ? gradlogf = x -> ForwardDiff.gradient(logf,x) : gradlogf = x -> ForwardDiff.derivative(logf,x)
@@ -651,21 +648,25 @@
     gradlogf(x0)
 
     N = 150000
-    h0 = 0.1d^-1
-    steps = 50
+    h0 = 3e-4
+    steps = 100
     
     beta = 1.1
-    burnin = N/2000
-    adaptlength = N/2000
+    burnin = N/5
+    adaptlength = N/200
     R = 1e6
     r = 1e-3
-    forgetrate = 3/4
+    forgetrate = 1/2
+    hgeom = 10
     
     @time out = SBarkerAdaptive(logf, x0, h0, N, beta, r, R; gradlogf = gradlogf, 
-        sigma = sigma, mu = mu, burnin = burnin, adaptlength = burnin, steps = steps, forgetrate = forgetrate, updategamma = true, updateh = true, hgeom = 1);
+        sigma = sigma, mu = mu, burnin = burnin, adaptlength = burnin, steps = steps, forgetrate = forgetrate, updategamma = true, updateh = true, hgeom = hgeom);
 
+    #@time out = StereoBarkerSim(logf, x0, h0, N; gradlogf = gradlogf, sigma = sigma, mu = mu, includefirst = true, steps = 1, printing = false)
     #@time out = RotateBarkerSim(logf, x0, h, N; gradlogf = gradlogf, includefirst = true, steps = 1, printing = false)
 
+    @time slice = SliceAdaptive(logf, x0, N, beta, r, R; 
+        sigma = sigma, mu = mu, burnin = burnin, adaptlength = burnin, steps = steps, forgetrate = forgetrate, updategamma = true)
     
     #Plot comparison against the true distribution
     p(x) = 1/sqrt(2pi)*exp(-x^2/2)
@@ -683,37 +684,23 @@
     plot(1:steps:N*steps,out.x[:,1], label = "x_1")
     vline!(steps*cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
 
+    plot(1:steps:N*steps,slice.x[:,1], label = "x_1")
+    vline!(steps*cumsum(slice.times[1:end-1]), label = "Adaptations", lw = 0.5)
+
     plot(1:steps:N*steps,out.z[:,end], label = "z_{d+1}")
     vline!(steps*cumsum(out.times[1:end-1]), label = "Adaptations", lw = 0.5)
 
+    slicebana = sum(slice.x[:,2:end], dims = 2)
+    barkerbana = sum(out.x[:,2:end], dims = 2)
 
-    plot(out.a)
+    #histogram2d(slice.x[:,1], slice.x[:,2],normalize=:pdf, bins=(1000,1000))
+    histogram2d(slice.x[:,1], slicebana,normalize=:pdf, bins=(1000,1000))
+    histogram2d(out.x[:,1], barkerbana[:,1], normalize=:pdf, bins=(1000,1000))
 
-    plot(map(x -> sum(x -> x^2, x), eachrow(out.mu)))
-    plot(map(x -> sum(x -> x^2, eigen(x - sqrt(d)I(d)).values), out.sigma))
+    plot(autocor(out.x[:,1], 0:10:5000))
+    hline!([0])
+    plot!(autocor(slice.x[:,1], 0:10:5000))
 
-
-    #Autocorrelation test
-    p = plot()
-    sigma = sqrt(d)I(d)
-    mu = zeros(d)
-    
-    d > 1 ? x0 = sigma*normalize(randn(d)) + mu : x0 = (sigma*rand([1,-1]))[1]
-
-    @time out = SBarkerAdaptive(logf, x0, h0, N, beta, r, R; gradlogf = gradlogf, 
-        sigma = sigma, mu = mu, burnin = burnin, adaptlength = burnin, steps = steps, forgetrate = forgetrate, updategamma = false, updateh = true, hgeom = 1);
-    plot!(p,(0:1:1000)*N, autocor(sum(out.x.^2, dims=2), 0:1:1000), label = "Inf")
-    #plot!(p, (0:1:1200)*stepssrw, autocor(sum(out.x.^2, dims=2), 0:1:1200), label = "∞")
-    
-    hbark = zeros(6)
-    #cost[1] = sum(out.Nevals)/T
-    hbark[1] = out.h[end]
-    i=2
- 
-    plot(p)
-
-
-    out=StereoBarkerSim(logf, x0, h0, N; gradlogf = missing, sigma = sqrt(length(x0))I(length(x0)), mu = zeros(length(x0)), includefirst = true, steps = 1, printing = false)
 
 # Plots for poster 
     q(y,grad) = sqrt(2/pi)*exp(-y^2/2)/(1 + exp(-y*grad))
