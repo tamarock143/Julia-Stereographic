@@ -25,7 +25,7 @@
     end
 
 #### ADAM Testing
-    d = 10
+    d = 50
     lat = 2
 
     f = function(z, theta::AbstractVector{T}) where T
@@ -33,8 +33,8 @@
 
         tnorm = sum(theta[d+1:2d].^2)
 
-        mid = theta[d+1:2d]/sqrt(tnorm + 1e-2)*tanh(tnorm/2)*(1-(lat-1)^2)
-        #mid = zeros(d)
+        #mid = theta[d+1:2d]/sqrt(tnorm + 1e-2)*tanh(tnorm/2)*(1-(lat-1)^2)
+        mid = zeros(d)
 
         A = UpperTriangular(zeros(T,d,d))
         k=2d+1
@@ -54,7 +54,14 @@
 
     z = unifsim(100000, d; obs = lat)
 
-    logf(x) = -d*log(d + sum(x.^2))
+    nu = 3
+    b = 1
+
+    banana(x; b=1) = vcat(x[1] + b*sum(x -> x^2,x[2:end]), x[2:end])
+    test = x -> -(nu+d)/2*log(nu + sum(x.^2))
+
+    logf = x -> test(banana(x; b = b))
+
 
     theta = randn(Int64(2d+d*(d+1)/2))
 
