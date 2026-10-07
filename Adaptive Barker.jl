@@ -201,3 +201,337 @@ SBarkerAdaptive = function(logf, x0, h0, N, beta, r, R; gradlogf = missing,
     return (x = xout, z = zout, mu = muest, sigma = sigmaest, times = times, c = cout, h = h, a = accepts)
 
 end
+
+RotateBarkerAdaptive = function(logf, x0, h0, N, beta, r, R; gradlogf = missing,
+    burnin = 1e2, adaptlength = burnin, steps = 1, forgetrate = 1/2, updateh = false, hgeom = 1)
+    
+    d = length(x0) #The dimension
+
+    d == 1 && (x0 = fill(x0, 1))
+
+    #Prepare output
+    zout = zeros(N,d+1)
+    xout = zeros(N,d)
+
+    xout[1,:] = x0
+    
+    #Construct gradient of logf, if not specified
+    if ismissing(gradlogf)
+        d > 1 ? gradlogf = x -> ForwardDiff.gradient(logf,x) : gradlogf = x -> ForwardDiff.derivative(logf,x)
+    end
+    
+    left::Int64 = N #Track remaining amount of steps left until last observation
+    
+    #Ensure burn-in is not close to 0 for ease of future calculations
+    burnin <= 1 && (burnin = 1)
+
+    #Set up adaptation times
+    #Include initial burn-in period
+    times::Vector{Int64} = [burnin]
+    i=1
+
+    #Variable tracking which power of 2 is used in length of the adaptative epoch
+    power = 0
+
+    #Tracker for whether we have enough adaptations to fill the time
+    timescheck = left - times[1]
+
+    while timescheck > 0
+        #For theoretical guarantees, we ensure increasing common divisor to lags
+        
+        #Increment powers of 2 to be of order i^beta
+        power += findfirst(map(x -> 2^x, power:power+beta+1) .>= i^beta) -1
+
+        #Add on the next adaptive epoch
+        append!(times, min(adaptlength*2^power, timescheck))
+
+        #Remove this epoch's length
+        timescheck -= times[end]
+
+        #Iterate length of times
+        i += 1
+    end
+
+    #Exact number of adaptive times
+    nadapt = i
+
+    #Indexes of starts of each adaptation in xout. Will be required for moving paths into output
+    adaptstarts = append!([1], cumsum(times)[1:end] .+ 1)
+    
+    #Prepare storage for acceptance ratios and estimators for h
+    accepts::Vector{Float64} = zeros(nadapt)
+    h::Vector{Float64} = zeros(nadapt+1)
+    h[1] = h0
+
+    iadapt = 1 #Track which adaptive estimate we are currently using
+
+    #Return Robbins-Monro scaling constants
+    cout = zeros(nadapt)
+
+    
+    #For each adaptive period, run the SBPS simulation with fixed parameter values
+    for t in times
+        #If we've run the full time, end the process
+        left == 0 && break
+
+        println("Adaptation number: ", iadapt, "/", nadapt, ". Adaptation length: ", t, "\n")
+        
+        #Run the process with the given parameters
+        #The -(iadapt !=1) term is a workaround for indexing
+        @time (xpath,accepts[iadapt]) = RotateBarkerSim(logf, xout[adaptstarts[iadapt]-(iadapt !=1),:], h[iadapt], min(t,left); gradlogf = gradlogf,
+        includefirst = (iadapt == 1), steps = steps)
+
+        #Update how much time is left
+        left >= t ? left -= t : left = 0
+
+        #Input changes based on whether we need to include the first value
+        if iadapt == 1
+            #Append this piece to the output
+            xout[adaptstarts[iadapt]+1:adaptstarts[iadapt+1]-1,:] = xpath[2:end,:]
+        else
+            #Append this piece to the output
+            xout[adaptstarts[iadapt]:adaptstarts[iadapt+1]-1,:] = xpath
+        end
+
+        #Update step size h via geometric update targeting acceptance rate of 0.574
+        if updateh
+            h[iadapt+1] = h[iadapt]*exp(hgeom*(accepts[iadapt] - 0.574)/iadapt)
+
+            #Truncate estimator for theoretical reasons
+            h[iadapt+1] > R^2 && (h[iadapt+1] = R^2)
+            h[iadapt+1] < r^2 && (h[iadapt+1] = r^2)
+
+        else
+            h[iadapt+1] = h0
+        end
+        
+        #Increment number of adaptations
+        iadapt += 1
+    end
+
+    return (x = xout, times = times, c = cout, h = h, a = accepts)
+
+end
+
+CoordBarkerAdaptive = function(logf, x0, h0, N, beta, r, R; gradlogf = missing,
+    burnin = 1e2, adaptlength = burnin, steps = 1, forgetrate = 1/2, updateh = false, hgeom = 1)
+    
+    d = length(x0) #The dimension
+
+    d == 1 && (x0 = fill(x0, 1))
+
+    #Prepare output
+    zout = zeros(N,d+1)
+    xout = zeros(N,d)
+
+    xout[1,:] = x0
+    
+    #Construct gradient of logf, if not specified
+    if ismissing(gradlogf)
+        d > 1 ? gradlogf = x -> ForwardDiff.gradient(logf,x) : gradlogf = x -> ForwardDiff.derivative(logf,x)
+    end
+    
+    left::Int64 = N #Track remaining amount of steps left until last observation
+    
+    #Ensure burn-in is not close to 0 for ease of future calculations
+    burnin <= 1 && (burnin = 1)
+
+    #Set up adaptation times
+    #Include initial burn-in period
+    times::Vector{Int64} = [burnin]
+    i=1
+
+    #Variable tracking which power of 2 is used in length of the adaptative epoch
+    power = 0
+
+    #Tracker for whether we have enough adaptations to fill the time
+    timescheck = left - times[1]
+
+    while timescheck > 0
+        #For theoretical guarantees, we ensure increasing common divisor to lags
+        
+        #Increment powers of 2 to be of order i^beta
+        power += findfirst(map(x -> 2^x, power:power+beta+1) .>= i^beta) -1
+
+        #Add on the next adaptive epoch
+        append!(times, min(adaptlength*2^power, timescheck))
+
+        #Remove this epoch's length
+        timescheck -= times[end]
+
+        #Iterate length of times
+        i += 1
+    end
+
+    #Exact number of adaptive times
+    nadapt = i
+
+    #Indexes of starts of each adaptation in xout. Will be required for moving paths into output
+    adaptstarts = append!([1], cumsum(times)[1:end] .+ 1)
+    
+    #Prepare storage for acceptance ratios and estimators for h
+    accepts::Vector{Float64} = zeros(nadapt)
+    h::Vector{Float64} = zeros(nadapt+1)
+    h[1] = h0
+
+    iadapt = 1 #Track which adaptive estimate we are currently using
+
+    #Return Robbins-Monro scaling constants
+    cout = zeros(nadapt)
+
+    
+    #For each adaptive period, run the SBPS simulation with fixed parameter values
+    for t in times
+        #If we've run the full time, end the process
+        left == 0 && break
+
+        println("Adaptation number: ", iadapt, "/", nadapt, ". Adaptation length: ", t, "\n")
+        
+        #Run the process with the given parameters
+        #The -(iadapt !=1) term is a workaround for indexing
+        @time (xpath,accepts[iadapt]) = CoordBarkerSim(logf, xout[adaptstarts[iadapt]-(iadapt !=1),:], h[iadapt], min(t,left); gradlogf = gradlogf,
+        includefirst = (iadapt == 1), steps = steps)
+
+        #Update how much time is left
+        left >= t ? left -= t : left = 0
+
+        #Input changes based on whether we need to include the first value
+        if iadapt == 1
+            #Append this piece to the output
+            xout[adaptstarts[iadapt]+1:adaptstarts[iadapt+1]-1,:] = xpath[2:end,:]
+        else
+            #Append this piece to the output
+            xout[adaptstarts[iadapt]:adaptstarts[iadapt+1]-1,:] = xpath
+        end
+
+        #Update step size h via geometric update targeting acceptance rate of 0.574
+        if updateh
+            h[iadapt+1] = h[iadapt]*exp(hgeom*(accepts[iadapt] - 0.574)/iadapt)
+
+            #Truncate estimator for theoretical reasons
+            h[iadapt+1] > R^2 && (h[iadapt+1] = R^2)
+            h[iadapt+1] < r^2 && (h[iadapt+1] = r^2)
+
+        else
+            h[iadapt+1] = h0
+        end
+        
+        #Increment number of adaptations
+        iadapt += 1
+    end
+
+    return (x = xout, times = times, c = cout, h = h, a = accepts)
+
+end
+
+
+MalaAdaptive = function(logf, x0, h0, N, beta, r, R; gradlogf = missing,
+    burnin = 1e2, adaptlength = burnin, steps = 1, forgetrate = 1/2, updateh = false, hgeom = 1)
+    
+    d = length(x0) #The dimension
+
+    d == 1 && (x0 = fill(x0, 1))
+
+    #Prepare output
+    zout = zeros(N,d+1)
+    xout = zeros(N,d)
+
+    xout[1,:] = x0
+    
+    #Construct gradient of logf, if not specified
+    if ismissing(gradlogf)
+        d > 1 ? gradlogf = x -> ForwardDiff.gradient(logf,x) : gradlogf = x -> ForwardDiff.derivative(logf,x)
+    end
+    
+    left::Int64 = N #Track remaining amount of steps left until last observation
+    
+    #Ensure burn-in is not close to 0 for ease of future calculations
+    burnin <= 1 && (burnin = 1)
+
+    #Set up adaptation times
+    #Include initial burn-in period
+    times::Vector{Int64} = [burnin]
+    i=1
+
+    #Variable tracking which power of 2 is used in length of the adaptative epoch
+    power = 0
+
+    #Tracker for whether we have enough adaptations to fill the time
+    timescheck = left - times[1]
+
+    while timescheck > 0
+        #For theoretical guarantees, we ensure increasing common divisor to lags
+        
+        #Increment powers of 2 to be of order i^beta
+        power += findfirst(map(x -> 2^x, power:power+beta+1) .>= i^beta) -1
+
+        #Add on the next adaptive epoch
+        append!(times, min(adaptlength*2^power, timescheck))
+
+        #Remove this epoch's length
+        timescheck -= times[end]
+
+        #Iterate length of times
+        i += 1
+    end
+
+    #Exact number of adaptive times
+    nadapt = i
+
+    #Indexes of starts of each adaptation in xout. Will be required for moving paths into output
+    adaptstarts = append!([1], cumsum(times)[1:end] .+ 1)
+    
+    #Prepare storage for acceptance ratios and estimators for h
+    accepts::Vector{Float64} = zeros(nadapt)
+    h::Vector{Float64} = zeros(nadapt+1)
+    h[1] = h0
+
+    iadapt = 1 #Track which adaptive estimate we are currently using
+
+    #Return Robbins-Monro scaling constants
+    cout = zeros(nadapt)
+
+    
+    #For each adaptive period, run the SBPS simulation with fixed parameter values
+    for t in times
+        #If we've run the full time, end the process
+        left == 0 && break
+
+        println("Adaptation number: ", iadapt, "/", nadapt, ". Adaptation length: ", t, "\n")
+        
+        #Run the process with the given parameters
+        #The -(iadapt !=1) term is a workaround for indexing
+        @time (xpath,accepts[iadapt]) = HMC(logf, gradlogf, xout[adaptstarts[iadapt]-(iadapt !=1),:], min(t,left), h[iadapt], 1;         
+        includefirst = (iadapt == 1), steps = steps)
+
+        #Update how much time is left
+        left >= t ? left -= t : left = 0
+
+        #Input changes based on whether we need to include the first value
+        if iadapt == 1
+            #Append this piece to the output
+            xout[adaptstarts[iadapt]+1:adaptstarts[iadapt+1]-1,:] = xpath[2:end,:]
+        else
+            #Append this piece to the output
+            xout[adaptstarts[iadapt]:adaptstarts[iadapt+1]-1,:] = xpath
+        end
+
+        #Update step size h via geometric update targeting acceptance rate of 0.574
+        if updateh
+            h[iadapt+1] = h[iadapt]*exp(hgeom*(accepts[iadapt] - 0.574)/iadapt)
+
+            #Truncate estimator for theoretical reasons
+            h[iadapt+1] > R^2 && (h[iadapt+1] = R^2)
+            h[iadapt+1] < r^2 && (h[iadapt+1] = r^2)
+
+        else
+            h[iadapt+1] = h0
+        end
+        
+        #Increment number of adaptations
+        iadapt += 1
+    end
+
+    return (x = xout, times = times, c = cout, h = h, a = accepts)
+
+end

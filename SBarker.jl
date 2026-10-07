@@ -107,6 +107,16 @@ Rotategrad1inv = function (grad,y)
     return(y .+ ((y1*(1+ 2grad1) - graddoty)*gradnorm .- (graddoty + y1)*ones(d)/sqrt(d))/(1 + grad1))
 end
 
+log1_exp = function(x)
+        if x < -36
+        return exp(x)
+    elseif x > 33
+        return x
+    else
+        return log(1 + exp(x))
+    end 
+end
+
 #Barker step flipping against directional gradient
 #For rotate Barker, gradi = || ∇ log π ||/sqrt(d)
 #For coordinate Barker, gradi = d log π/dx_i
@@ -120,7 +130,7 @@ BarkerStep = function (grad,v)
     y = copy(v)
 
     #log-Probability of flipping
-    pflip = @. -log(1 + exp(-v*grad))
+    pflip = @. -log1_exp(-v*grad)
 
     #Random variables
     u = log.(rand(d))
@@ -133,6 +143,77 @@ BarkerStep = function (grad,v)
     d > 1 ? y .*= (-1).^flips : y *= (-1).^flips[]
 
     return(y)
+end
+
+
+#Coordinate Barker Simulator
+CoordBarkerSim = function (logf, x0, h, N; gradlogf = missing, includefirst = true, steps = 1, printing = false)
+    d = length(x0) #The dimension
+
+    #Prepare output
+    xout = zeros(N,d)
+
+    #Slightly convoluted method for not storing the initial value WITHOUT allocating memory for an entirely new matrix
+    if includefirst
+        #If we want to include the first value, initialise the outputs
+        indexes = 2:N
+        xout[1,:] .= x0
+    else
+        #If we don't, start the indexes to be inputted at 1
+        indexes = 1:N
+    end
+
+    x = x0 #Position vector, initialised at x0
+    
+    #Construct gradient of logf, if not specified
+    if ismissing(gradlogf)
+        d > 1 ? gradlogf = x -> ForwardDiff.gradient(logf,x) : gradlogf = x -> ForwardDiff.derivative(logf,x)
+    end
+
+    fx = logf(x) #Precalculate density at position
+    d > 1 ? gradx = gradlogf(x) : gradx = gradlogf(x[1]) #Precalculate gradient at position
+    
+    aout = 0 # Track acceptance rate
+    
+    for n in indexes
+        #Print iteration number
+        printing && print("\rStep number: $n")
+
+        #We only sample one point after several steps
+        for _ in 1:steps
+            #Initialise step
+            v = h*randn(d)
+
+            #Flip steps
+            y = BarkerStep(gradx,v)
+            
+            #Proposal position, log-density and gradient
+            xprime = x .+ y
+
+            fxprime = logf(xprime)
+            d > 1 ? gradxprime = gradlogf(xprime) : gradxprime = gradlogf(xprime[1])
+
+            #Compute acceptance probability
+            a = fxprime - fx + sum(log1_exp.(-y.*gradx)) - sum(log1_exp.(y.*gradxprime))
+
+            u = log(rand(Float64)) #Simulate from uniform to accept/reject
+
+            if u < a #Accept proposal
+                #Update position, density, gradient
+                x = xprime 
+                fx = fxprime
+                gradx = gradxprime
+
+                aout += 1/(N*steps-1)
+            end
+        end
+
+        #Add to output
+        xout[n,:] .= x
+    end
+    println()
+
+    return (x = xout, a = aout)
 end
 
 #Rotate Barker Simulator
@@ -188,7 +269,7 @@ RotateBarkerSim = function (logf, x0, h, N; gradlogf = missing, includefirst = t
             yprime = Rotategrad1(gradxprime,x.-xprime)
 
             #Compute acceptance probability
-            a = fxprime - fx + sum(log.(1 .+ exp.(-y*normgradx/sqrt(d)))) - sum(log.(1 .+ exp.(-yprime*normgradxprime/sqrt(d))))
+            a = fxprime - fx + sum(log1_exp.(-y*normgradx/sqrt(d))) - sum(log1_exp.(-yprime*normgradxprime/sqrt(d)))
 
             u = log(rand(Float64)) #Simulate from uniform to accept/reject
 
@@ -289,7 +370,7 @@ StereoBarkerSim = function (logf, x0, h, N; gradlogf = missing, sigma = sqrt(len
             yprime = Rotategrad1(gprime, RotatezN(zprime, z/sum(z .* zprime) - zprime)[1:end-1]) #Reverse Barker proposal step 
 
             #Compute acceptance probability
-            a = densprime - densz + sum(log.(1 .+ exp.(-y*normgradz/sqrt(d)))) - sum(log.(1 .+ exp.(-yprime*normgradprime/sqrt(d))))
+            a = densprime - densz + sum(log1_exp.(-y*normgradz/sqrt(d))) - sum(log1_exp.(-yprime*normgradprime/sqrt(d)))
 
             u = log(rand(Float64)) #Simulate from uniform to accept/reject
 
